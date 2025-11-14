@@ -84,22 +84,54 @@ struct MessageBubble: View {
         .font(.caption)
         .fontWeight(.semibold)
         .foregroundStyle(labelColor)
-      
-      Text(message.text)
-        .font(.body)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-          RoundedRectangle(cornerRadius: 12)
-            .fill(messageColor.opacity(0.2))
+
+      VStack(alignment: message.isUser ? .leading : .trailing, spacing: 6) {
+        // Show image if present
+        if let imageBase64URL = message.imageBase64URL,
+           let image = decodeBase64Image(imageBase64URL) {
+          Image(nsImage: image)
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: 200, maxHeight: 150)
+            .cornerRadius(8)
             .overlay(
-              RoundedRectangle(cornerRadius: 12)
+              RoundedRectangle(cornerRadius: 8)
                 .stroke(messageColor.opacity(0.4), lineWidth: 1)
             )
-        )
+        }
+
+        // Message text
+        Text(message.text)
+          .font(.body)
+          .foregroundStyle(.white)
+          .padding(.horizontal, 12)
+          .padding(.vertical, 8)
+          .background(
+            RoundedRectangle(cornerRadius: 12)
+              .fill(messageColor.opacity(0.2))
+              .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                  .stroke(messageColor.opacity(0.4), lineWidth: 1)
+              )
+          )
+      }
     }
     .frame(maxWidth: 250, alignment: message.isUser ? .leading : .trailing)
+  }
+
+  private func decodeBase64Image(_ base64DataURL: String) -> NSImage? {
+    // Extract base64 string from data URL
+    // Format: "data:image/{format};base64,{base64_string}"
+    guard let commaIndex = base64DataURL.firstIndex(of: ",") else {
+      return nil
+    }
+
+    let base64String = String(base64DataURL[base64DataURL.index(after: commaIndex)...])
+    guard let imageData = Data(base64Encoded: base64String) else {
+      return nil
+    }
+
+    return NSImage(data: imageData)
   }
 }
 

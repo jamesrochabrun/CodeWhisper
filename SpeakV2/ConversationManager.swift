@@ -33,6 +33,14 @@ struct ConversationMessage: Identifiable {
   let text: String
   let isUser: Bool
   let timestamp: Date
+  let imageBase64URL: String? // Optional base64 data URL for images
+
+  init(text: String, isUser: Bool, timestamp: Date, imageBase64URL: String? = nil) {
+    self.text = text
+    self.isUser = isUser
+    self.timestamp = timestamp
+    self.imageBase64URL = imageBase64URL
+  }
 }
 
 @Observable
@@ -68,8 +76,9 @@ final class ConversationManager {
   private var sessionTask: Task<Void, Never>?
   private var micTask: Task<Void, Never>?
   
-  private let modelName = "gpt-4o-mini-realtime-preview-2024-12-17"
-  
+ // private let modelName = "gpt-4o-mini-realtime-preview-2024-12-17"
+  private let modelName = "gpt-realtime"
+
   func startConversation(
     service: OpenAIService,
     configuration: OpenAIRealtimeSessionConfiguration
@@ -298,9 +307,52 @@ final class ConversationManager {
     }
   }
   
+  /// Send an image with optional text to the conversation
+  func sendImage(_ imageBase64URL: String, text: String = "What do you see in this image?") async {
+    guard let session = realtimeSession else {
+      errorMessage = "No active session"
+      return
+    }
+
+    do {
+      // Create conversation item with image and text
+      let item = OpenAIRealtimeConversationItemCreate.Item(
+        role: "user",
+        content: [
+          .image(imageBase64URL),
+          .text(text)
+        ]
+      )
+
+      // Send to session on RealtimeActor
+      try await Task { @RealtimeActor in
+        await session.sendMessage(
+          OpenAIRealtimeConversationItemCreate(item: item)
+        )
+
+        // Trigger AI response
+        await session.sendMessage(OpenAIRealtimeResponseCreate())
+      }.value
+
+      // Add to local message history
+      messages.append(ConversationMessage(
+        text: text,
+        isUser: true,
+        timestamp: Date(),
+        imageBase64URL: imageBase64URL
+      ))
+
+      print("Image sent successfully with text: \(text)")
+
+    } catch {
+      errorMessage = "Failed to send image: \(error.localizedDescription)"
+      print("Error sending image: \(error)")
+    }
+  }
+
   func stopConversation() {
     print("ConversationManager.stopConversation - Stopping...")
-    
+
     // Cancel tasks
     sessionTask?.cancel()
     micTask?.cancel()

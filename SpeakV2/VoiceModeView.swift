@@ -12,15 +12,30 @@ struct VoiceModeView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var conversationManager = ConversationManager()
   @State private var isInitializing = true
-  
+  @State private var showScreenshotPicker = false
+
   var body: some View {
     ZStack {
       Color.black.ignoresSafeArea()
       
       VStack(spacing: 30) {
-        // Close button
+        // Top toolbar
         HStack {
+          // Screenshot button
+          Button {
+            showScreenshotPicker = true
+          } label: {
+            Image(systemName: "camera.viewfinder")
+              .font(.system(size: 28))
+              .foregroundStyle(.white.opacity(0.7))
+          }
+          .disabled(!conversationManager.isConnected)
+          .opacity(conversationManager.isConnected ? 1.0 : 0.5)
+          .help("Capture and send screenshot")
+
           Spacer()
+
+          // Close button
           Button {
             conversationManager.stopConversation()
             dismiss()
@@ -29,8 +44,8 @@ struct VoiceModeView: View {
               .font(.system(size: 32))
               .foregroundStyle(.white.opacity(0.7))
           }
-          .padding()
         }
+        .padding()
         
         Spacer()
         
@@ -91,6 +106,13 @@ struct VoiceModeView: View {
     }
     .task {
       await startConversation()
+    }
+    .sheet(isPresented: $showScreenshotPicker) {
+      ScreenshotPickerView { base64DataURL in
+        Task {
+          await conversationManager.sendImage(base64DataURL)
+        }
+      }
     }
   }
   
