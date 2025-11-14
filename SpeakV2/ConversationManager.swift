@@ -50,17 +50,20 @@ final class ConversationManager {
   private(set) var isConnected = false
   private(set) var isListening = false
   private(set) var errorMessage: String?
-  
+
+  // Microphone mute state
+  private(set) var isMicrophoneMuted = false
+
   // Audio levels and frequency data
   private(set) var audioLevel: Float = 0.0           // User mic RMS amplitude
   private(set) var aiAudioLevel: Float = 0.0         // AI speech RMS amplitude
   private(set) var lowFrequency: Float = 0.0         // Low frequency band (0-250Hz)
   private(set) var midFrequency: Float = 0.0         // Mid frequency band (250-2000Hz)
   private(set) var highFrequency: Float = 0.0        // High frequency band (2000Hz+)
-  
+
   // Conversation state
   private(set) var conversationState: ConversationState = .idle
-  
+
   // Conversation messages
   private(set) var messages: [ConversationMessage] = []
   
@@ -156,9 +159,11 @@ final class ConversationManager {
               )
               self.highFrequency = self.smoothedHighFreq
             }
-            
-            // Send audio to OpenAI
-            if await readyState.isReady,
+
+            // Send audio to OpenAI (only if not muted)
+            let isMuted = await MainActor.run { self.isMicrophoneMuted }
+            if !isMuted,
+               await readyState.isReady,
                let base64Audio = AudioUtils.base64EncodeAudioPCMBuffer(from: buffer) {
               await session.sendMessage(
                 OpenAIRealtimeInputAudioBufferAppend(audio: base64Audio)
@@ -363,6 +368,56 @@ final class ConversationManager {
       errorMessage = "Failed to send image: \(error.localizedDescription)"
       print("Error sending image: \(error)")
     }
+  }
+
+  /// Send a text message to the conversation
+  func sendText(_ text: String) async {
+    guard let session = realtimeSession else {
+      errorMessage = "No active session"
+      return
+    }
+
+    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      print("Ignoring empty text message")
+      return
+    }
+
+    do {
+      // Create conversation item with text only
+      let item = OpenAIRealtimeConversationItemCreate.Item(
+        role: "user",
+        text: text
+      )
+
+      // Send to session on RealtimeActor
+      try await Task { @RealtimeActor in
+        await session.sendMessage(
+          OpenAIRealtimeConversationItemCreate(item: item)
+        )
+
+        // Trigger AI response
+        await session.sendMessage(OpenAIRealtimeResponseCreate())
+      }.value
+
+      // Add to local message history
+      messages.append(ConversationMessage(
+        text: text,
+        isUser: true,
+        timestamp: Date()
+      ))
+
+      print("Text message sent: \(text)")
+
+    } catch {
+      errorMessage = "Failed to send text: \(error.localizedDescription)"
+      print("Error sending text: \(error)")
+    }
+  }
+
+  /// Toggle microphone mute state
+  func toggleMicrophoneMute() {
+    isMicrophoneMuted.toggle()
+    print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
   }
 
   func stopConversation() {
