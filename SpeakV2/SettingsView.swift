@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @Environment(SettingsManager.self) private var settings
+  @Environment(MCPServerManager.self) private var mcpManager
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -29,7 +30,32 @@ struct SettingsView: View {
           Text("Your API key is stored locally and only used to authenticate with OpenAI's Realtime API.")
             .font(.caption)
         }
-        
+
+        Section {
+          NavigationLink {
+            MCPSettingsView()
+          } label: {
+            Label {
+              VStack(alignment: .leading, spacing: 2) {
+                Text("MCP Servers")
+                if mcpManager.hasServers {
+                  Text("\(mcpManager.servers.count) configured")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+              }
+            } icon: {
+              Image(systemName: "server.rack")
+                .foregroundStyle(.blue)
+            }
+          }
+        } header: {
+          Text("Extensions")
+        } footer: {
+          Text("Configure Model Context Protocol servers to extend your AI assistant with external tools and capabilities.")
+            .font(.caption)
+        }
+
         Section {
           Button(role: .destructive) {
             settingsManager.clearAPIKey()

@@ -13,21 +13,24 @@ import SwiftOpenAI
 @MainActor
 final class OpenAIServiceManager {
   // MARK: - Service
-  
+
   private(set) var service: OpenAIService?
   private var currentApiKey: String = ""
-  
+
+  // MCP Server Manager
+  private var mcpServerManager: MCPServerManager?
+
   // MARK: - Configuration Properties
-  
+
   // Model and transcription
   var transcriptionModel: String = "whisper-1"
-  
+
   // Conversation settings
   var instructions: String = "You are a helpful AI assistant. Have a natural conversation with the user."
   var maxResponseOutputTokens: Int = 4096
   var temperature: Double = 0.7
   var voice: String = "alloy"
-  
+
   // Turn detection
   var turnDetectionEagerness: TurnDetectionEagerness = .medium
   
@@ -56,11 +59,37 @@ final class OpenAIServiceManager {
     }
   }
   
+  // MARK: - MCP Server Management
+
+  func setMCPServerManager(_ manager: MCPServerManager) {
+    self.mcpServerManager = manager
+  }
+
+  func mcpServersDidChange() {
+    // Trigger configuration refresh if needed
+    // For now, the configuration will be recreated on next session start
+  }
+
   // MARK: - Configuration Generation
-  
+
   /// Creates an OpenAI Realtime Session Configuration from current settings
   func createSessionConfiguration() -> OpenAIRealtimeSessionConfiguration {
-    OpenAIRealtimeSessionConfiguration(
+    // Build tools array with MCP servers if configured
+    var tools: [OpenAIRealtimeSessionConfiguration.RealtimeTool]? = nil
+
+    if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
+      tools = mcpManager.servers.map { serverConfig in
+        let mcpTool = Tool.MCPTool(
+          serverLabel: serverConfig.label,
+          authorization: serverConfig.authorization,
+          requireApproval: serverConfig.requireApproval == "never" ? .never : .always,
+          serverUrl: serverConfig.serverUrl
+        )
+        return .mcp(mcpTool)
+      }
+    }
+
+    return OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
       inputAudioTranscription: .init(model: transcriptionModel),
       instructions: instructions,
@@ -68,6 +97,7 @@ final class OpenAIServiceManager {
       modalities: [.audio, .text],
       outputAudioFormat: .pcm16,
       temperature: temperature,
+      tools: tools,
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
