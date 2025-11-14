@@ -78,7 +78,20 @@ final class OpenAIServiceManager {
     var tools: [OpenAIRealtimeSessionConfiguration.RealtimeTool]? = nil
 
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
+      print("🔧 MCP: Configuring \(mcpManager.servers.count) server(s)")
+
       tools = mcpManager.servers.map { serverConfig in
+        print("🔧 MCP Server Config:")
+        print("   - Label: \(serverConfig.label)")
+        print("   - URL: \(serverConfig.serverUrl)")
+        if let auth = serverConfig.authorization {
+          print("   - Auth: ✓ present (length: \(auth.count) chars)")
+          print("   - Auth token: \(auth.prefix(8))...\(auth.suffix(4))")
+        } else {
+          print("   - Auth: ✗ none")
+        }
+        print("   - Approval: \(serverConfig.requireApproval)")
+
         let mcpTool = Tool.MCPTool(
           serverLabel: serverConfig.label,
           authorization: serverConfig.authorization,
@@ -87,9 +100,13 @@ final class OpenAIServiceManager {
         )
         return .mcp(mcpTool)
       }
+
+      print("🔧 MCP: Created \(tools?.count ?? 0) tool(s) for session")
+    } else {
+      print("🔧 MCP: No servers configured")
     }
 
-    return OpenAIRealtimeSessionConfiguration(
+    let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
       inputAudioTranscription: .init(model: transcriptionModel),
       instructions: instructions,
@@ -101,6 +118,15 @@ final class OpenAIServiceManager {
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
+
+    // Log the encoded JSON for debugging
+    if let jsonData = try? JSONEncoder().encode(config),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+      print("🔧 MCP: Session configuration JSON:")
+      print(jsonString)
+    }
+
+    return config
   }
 }
 

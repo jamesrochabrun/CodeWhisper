@@ -32,11 +32,39 @@ final class MCPServerManager {
 
   init() {
     loadServers()
+    removeDuplicates()
+  }
+
+  /// Remove duplicate servers with the same label
+  private func removeDuplicates() {
+    let originalCount = servers.count
+    var seenLabels = Set<String>()
+    var uniqueServers: [MCPServerConfig] = []
+
+    for server in servers {
+      if !seenLabels.contains(server.label) {
+        seenLabels.insert(server.label)
+        uniqueServers.append(server)
+      } else {
+        print("⚠️ Removing duplicate MCP server with label: \(server.label)")
+      }
+    }
+
+    if uniqueServers.count != originalCount {
+      servers = uniqueServers
+      saveServers()
+      print("✅ Removed \(originalCount - uniqueServers.count) duplicate server(s)")
+    }
   }
 
   // MARK: - CRUD Operations
 
   func addServer(_ config: MCPServerConfig) {
+    // Check for duplicate label
+    if servers.contains(where: { $0.label == config.label }) {
+      print("⚠️ Cannot add server: label '\(config.label)' already exists")
+      return
+    }
     servers.append(config)
     saveServers()
   }

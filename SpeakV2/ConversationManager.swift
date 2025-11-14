@@ -301,9 +301,24 @@ final class ConversationManager {
       
     case .inputAudioBufferTranscript(let transcript):
       print("Input audio transcript: \(transcript)")
-      
+
     case .inputAudioTranscriptionDelta(let delta):
       print("User transcript delta: \(delta)")
+
+    // MCP (Model Context Protocol) message handling
+    case .mcpListToolsInProgress:
+      print("🔧 MCP: Tool discovery in progress...")
+
+    case .mcpListToolsCompleted(let tools):
+      print("✅ MCP: Tool discovery completed successfully")
+      print("🔧 MCP: Available tools: \(tools)")
+
+    case .mcpListToolsFailed(let error):
+      print("❌ MCP: Tool discovery FAILED")
+      print("❌ MCP Error: \(error ?? "Unknown error")")
+      await MainActor.run {
+        self.errorMessage = "MCP Error: \(error ?? "Unknown error")"
+      }
     }
   }
   
