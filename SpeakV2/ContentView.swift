@@ -8,82 +8,82 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var settingsManager = SettingsManager()
-    @State private var showingVoiceMode = false
-    @State private var showingSettings = false
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            VStack(spacing: 40) {
-                Spacer()
-
-                Text("SpeakV2")
-                    .font(.system(size: 60, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text("Real-time voice conversations with AI")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-
-                Spacer()
-
-                Button {
-                    if settingsManager.hasValidAPIKey {
-                        showingVoiceMode = true
-                    } else {
-                        showingSettings = true
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "waveform.circle.fill")
-                            .font(.title2)
-                        Text("Start Voice Mode")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.white)
-                    }
-                }
-                .padding(.horizontal, 40)
-
-                Button {
-                    showingSettings = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "gear")
-                        Text("Settings")
-                    }
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(.vertical, 12)
-                }
-
-                Spacer()
-            }
+  @State private var settingsManager = SettingsManager()
+  @State private var showingVoiceMode = false
+  @State private var showingSettings = false
+  
+  var body: some View {
+    ZStack {
+      Color.black.ignoresSafeArea()
+      
+      VStack(spacing: 40) {
+        Spacer()
+        
+        Text("SpeakV2")
+          .font(.system(size: 60, weight: .bold, design: .rounded))
+          .foregroundStyle(.white)
+        
+        Text("Real-time voice conversations with AI")
+          .font(.title3)
+          .foregroundStyle(.white.opacity(0.7))
+          .multilineTextAlignment(.center)
+          .padding(.horizontal)
+        
+        Spacer()
+        
+        Button {
+          if settingsManager.hasValidAPIKey {
+            showingVoiceMode = true
+          } else {
+            showingSettings = true
+          }
+        } label: {
+          HStack(spacing: 12) {
+            Image(systemName: "waveform.circle.fill")
+              .font(.title2)
+            Text("Start Voice Mode")
+              .font(.title3)
+              .fontWeight(.semibold)
+          }
+          .foregroundStyle(.black)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 18)
+          .background {
+            RoundedRectangle(cornerRadius: 16)
+              .fill(.white)
+          }
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(settingsManager: settingsManager)
+        .padding(.horizontal, 40)
+        
+        Button {
+          showingSettings = true
+        } label: {
+          HStack(spacing: 8) {
+            Image(systemName: "gear")
+            Text("Settings")
+          }
+          .foregroundStyle(.white.opacity(0.7))
+          .padding(.vertical, 12)
         }
-        #if os(macOS)
-        .sheet(isPresented: $showingVoiceMode) {
-            VoiceModeView(settingsManager: settingsManager)
-        }
-        #else
-        .fullScreenCover(isPresented: $showingVoiceMode) {
-            VoiceModeView(settingsManager: settingsManager)
-        }
-        #endif
+        
+        Spacer()
+      }
     }
+    .sheet(isPresented: $showingSettings) {
+      SettingsView(settingsManager: settingsManager)
+    }
+#if os(macOS)
+    .sheet(isPresented: $showingVoiceMode) {
+      VoiceModeView(settingsManager: settingsManager)
+    }
+#else
+    .fullScreenCover(isPresented: $showingVoiceMode) {
+      VoiceModeView(settingsManager: settingsManager)
+    }
+#endif
+  }
 }
 
 #Preview {
-    ContentView()
+  ContentView()
 }

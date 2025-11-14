@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7B64FC8C2EC6FB3000237379 /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7B64FC8B2EC6FB3000237379 /* SwiftOpenAI */; };
+		7B64FCB32EC6FE8E00237379 /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7B64FCB22EC6FE8E00237379 /* SwiftOpenAI */; };
 		7B7BC9352EC1D99B0031D849 /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7B7BC9342EC1D99B0031D849 /* SwiftOpenAI */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +58,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B64FC8C2EC6FB3000237379 /* SwiftOpenAI in Frameworks */,
+				7B64FCB32EC6FE8E00237379 /* SwiftOpenAI in Frameworks */,
 				7B7BC9352EC1D99B0031D849 /* SwiftOpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -118,6 +122,8 @@
 			name = SpeakV2;
 			packageProductDependencies = (
 				7B7BC9342EC1D99B0031D849 /* SwiftOpenAI */,
+				7B64FC8B2EC6FB3000237379 /* SwiftOpenAI */,
+				7B64FCB22EC6FE8E00237379 /* SwiftOpenAI */,
 			);
 			productName = SpeakV2;
 			productReference = 7B7BC8D62EC1BEA80031D849 /* SpeakV2.app */;
@@ -202,7 +208,7 @@
 			mainGroup = 7B7BC8CD2EC1BEA80031D849;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7B7BC9332EC1D99B0031D849 /* XCLocalSwiftPackageReference "../SwiftOpenAI" */,
+				7B64FCB12EC6FE8E00237379 /* XCRemoteSwiftPackageReference "SwiftOpenAI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B7BC8D72EC1BEA80031D849 /* Products */;
@@ -631,14 +637,27 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		7B7BC9332EC1D99B0031D849 /* XCLocalSwiftPackageReference "../SwiftOpenAI" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../SwiftOpenAI;
+/* Begin XCRemoteSwiftPackageReference section */
+		7B64FCB12EC6FE8E00237379 /* XCRemoteSwiftPackageReference "SwiftOpenAI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jamesrochabrun/SwiftOpenAI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.4.1;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		7B64FC8B2EC6FB3000237379 /* SwiftOpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftOpenAI;
+		};
+		7B64FCB22EC6FE8E00237379 /* SwiftOpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7B64FCB12EC6FE8E00237379 /* XCRemoteSwiftPackageReference "SwiftOpenAI" */;
+			productName = SwiftOpenAI;
+		};
 		7B7BC9342EC1D99B0031D849 /* SwiftOpenAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftOpenAI;
