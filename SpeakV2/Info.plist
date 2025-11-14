@@ -4,5 +4,7 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SpeakV2 needs access to your microphone to enable real-time voice conversations with AI.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>SpeakV2 needs screen recording permission to capture screenshots that you can share with the AI assistant for visual context.</string>
 </dict>
 </plist>
