@@ -9,6 +9,9 @@ import Foundation
 import Observation
 import SwiftOpenAI
 import AVFoundation
+import ClaudeCodeCore
+import ClaudeCodeSDK
+import CCCustomPermissionService
 
 // Actor to safely share state between MainActor and RealtimeActor
 actor ReadyState {
@@ -27,6 +30,15 @@ enum ConversationState: Int {
   case aiSpeaking = 3     // AI is speaking
 }
 
+/// Represents the type of message in the conversation
+enum ConversationMessageType {
+  case regular              // Normal user/AI message
+  case claudeCodeStart      // Claude Code task started
+  case claudeCodeProgress   // Claude Code progress update
+  case claudeCodeResult     // Claude Code final result
+  case claudeCodeError      // Claude Code error
+}
+
 /// Represents a single message in the conversation
 struct ConversationMessage: Identifiable {
   let id = UUID()
@@ -34,12 +46,20 @@ struct ConversationMessage: Identifiable {
   let isUser: Bool
   let timestamp: Date
   let imageBase64URL: String? // Optional base64 data URL for images
+  let messageType: ConversationMessageType // Type of message
 
-  init(text: String, isUser: Bool, timestamp: Date, imageBase64URL: String? = nil) {
+  init(
+    text: String,
+    isUser: Bool,
+    timestamp: Date,
+    imageBase64URL: String? = nil,
+    messageType: ConversationMessageType = .regular
+  ) {
     self.text = text
     self.isUser = isUser
     self.timestamp = timestamp
     self.imageBase64URL = imageBase64URL
+    self.messageType = messageType
   }
 }
 
@@ -50,25 +70,28 @@ final class ConversationManager {
   private(set) var isConnected = false
   private(set) var isListening = false
   private(set) var errorMessage: String?
-
+  
   // Microphone mute state
   private(set) var isMicrophoneMuted = false
-
+  
   // Audio levels and frequency data
   private(set) var audioLevel: Float = 0.0           // User mic RMS amplitude
   private(set) var aiAudioLevel: Float = 0.0         // AI speech RMS amplitude
   private(set) var lowFrequency: Float = 0.0         // Low frequency band (0-250Hz)
   private(set) var midFrequency: Float = 0.0         // Mid frequency band (250-2000Hz)
   private(set) var highFrequency: Float = 0.0        // High frequency band (2000Hz+)
-
+  
   // Conversation state
   private(set) var conversationState: ConversationState = .idle
-
+  
   // Conversation messages
   private(set) var messages: [ConversationMessage] = []
-
+  
   // Screenshot capture
   private let screenshotCapture = ScreenshotCapture()
+
+  // Claude Code manager
+  private var claudeCodeManager: ClaudeCodeManager?
 
   // Smoothing for visual transitions
   private var smoothedAudioLevel: Float = 0.0
@@ -76,29 +99,29 @@ final class ConversationManager {
   private var smoothedLowFreq: Float = 0.0
   private var smoothedMidFreq: Float = 0.0
   private var smoothedHighFreq: Float = 0.0
-
+  
   private var realtimeSession: OpenAIRealtimeSession?
   private var audioController: AudioController?
   private var sessionTask: Task<Void, Never>?
   private var micTask: Task<Void, Never>?
   
- // private let modelName = "gpt-4o-mini-realtime-preview-2024-12-17"
+  // private let modelName = "gpt-4o-mini-realtime-preview-2024-12-17"
   private let modelName = "gpt-realtime"
-
+  
   func startConversation(
     service: OpenAIService,
     configuration: OpenAIRealtimeSessionConfiguration
   ) async {
     do {
       print("ConversationManager.startConversation - Starting...")
-
+      
       // Request microphone permission
       let permissionGranted = await requestMicrophonePermission()
       guard permissionGranted else {
         errorMessage = "Microphone permission is required for voice mode"
         return
       }
-
+      
       // Create realtime session and audio controller on RealtimeActor
       print("Creating realtime session...")
       
@@ -162,7 +185,7 @@ final class ConversationManager {
               )
               self.highFrequency = self.smoothedHighFreq
             }
-
+            
             // Send audio to OpenAI (only if not muted)
             let isMuted = await MainActor.run { self.isMicrophoneMuted }
             if !isMuted,
@@ -299,8 +322,8 @@ final class ConversationManager {
       
     case .responseFunctionCallArgumentsDone(let name, let args, let callId):
       print("Function call: \(name)(\(args)) - callId: \(callId)")
-      await handleFunctionCall(name: name, arguments: args, callId: callId)
-
+      await handleFunctionCall(name: name, arguments: args, callId: callId, session: session)
+      
     case .sessionCreated:
       print("Session created")
       
@@ -309,18 +332,18 @@ final class ConversationManager {
       
     case .inputAudioBufferTranscript(let transcript):
       print("Input audio transcript: \(transcript)")
-
+      
     case .inputAudioTranscriptionDelta(let delta):
       print("User transcript delta: \(delta)")
-
-    // MCP (Model Context Protocol) message handling
+      
+      // MCP (Model Context Protocol) message handling
     case .mcpListToolsInProgress:
       print("🔧 MCP: Tool discovery in progress...")
-
+      
     case .mcpListToolsCompleted(let tools):
       print("✅ MCP: Tool discovery completed successfully")
       print("🔧 MCP: Available tools: \(tools)")
-
+      
     case .mcpListToolsFailed(let error):
       print("❌ MCP: Tool discovery FAILED")
       print("❌ MCP Error: \(error ?? "Unknown error")")
@@ -336,7 +359,7 @@ final class ConversationManager {
       errorMessage = "No active session"
       return
     }
-
+    
     do {
       // Create conversation item with image and text
       let item = OpenAIRealtimeConversationItemCreate.Item(
@@ -346,17 +369,17 @@ final class ConversationManager {
           .text(text)
         ]
       )
-
+      
       // Send to session on RealtimeActor
       try await Task { @RealtimeActor in
         await session.sendMessage(
           OpenAIRealtimeConversationItemCreate(item: item)
         )
-
+        
         // Trigger AI response
         await session.sendMessage(OpenAIRealtimeResponseCreate())
       }.value
-
+      
       // Add to local message history
       messages.append(ConversationMessage(
         text: text,
@@ -364,51 +387,51 @@ final class ConversationManager {
         timestamp: Date(),
         imageBase64URL: imageBase64URL
       ))
-
+      
       print("Image sent successfully with text: \(text)")
-
+      
     } catch {
       errorMessage = "Failed to send image: \(error.localizedDescription)"
       print("Error sending image: \(error)")
     }
   }
-
+  
   /// Send a text message to the conversation
   func sendText(_ text: String) async {
     guard let session = realtimeSession else {
       errorMessage = "No active session"
       return
     }
-
+    
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       print("Ignoring empty text message")
       return
     }
-
+    
     do {
       // Create conversation item with text only
       let item = OpenAIRealtimeConversationItemCreate.Item(
         role: "user",
         text: text
       )
-
+      
       // Send to session on RealtimeActor
       try await Task { @RealtimeActor in
         await session.sendMessage(
           OpenAIRealtimeConversationItemCreate(item: item)
         )
-
+        
         // Trigger AI response
         await session.sendMessage(OpenAIRealtimeResponseCreate())
       }.value
-
+      
       // Add to local message history
       messages.append(ConversationMessage(
         text: text,
         isUser: true,
         timestamp: Date()
       ))
-
+      
       print("Text message sent: \(text)")
 
     } catch {
@@ -417,25 +440,138 @@ final class ConversationManager {
     }
   }
 
+  /// Send function call output back to OpenAI Realtime API
+  private func sendFunctionCallOutput(callId: String, output: String, session: OpenAIRealtimeSession) async {
+    print("📤 Sending function call output for callId: \(callId)")
+
+    do {
+      // Create function call output using the custom struct
+      let functionOutput = FunctionToolCallOutput(callId: callId, output: output)
+      let itemCreateMessage = RealtimeConversationItemCreateWithFunctionOutput(item: functionOutput)
+
+      // Send to session on RealtimeActor
+      try await Task { @RealtimeActor in
+        // Send the function output as a message
+        await session.sendMessage(itemCreateMessage)
+
+        // Trigger AI response so it speaks the result
+        await session.sendMessage(OpenAIRealtimeResponseCreate())
+      }.value
+
+      print("✅ Function call output sent successfully")
+
+    } catch {
+      print("❌ Error sending function call output: \(error)")
+    }
+  }
+
+  /// Custom struct to send function call output via conversation.item.create
+  private struct RealtimeConversationItemCreateWithFunctionOutput: Encodable {
+    let type = "conversation.item.create"
+    let item: FunctionToolCallOutput
+
+    init(item: FunctionToolCallOutput) {
+      self.item = item
+    }
+  }
+
   /// Toggle microphone mute state
   func toggleMicrophoneMute() {
     isMicrophoneMuted.toggle()
     print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
   }
+  
+  /// Initialize Claude Code manager
+  func initializeClaudeCode() {
+    do {
+      // Following ClaudeCodeContainer pattern for proper initialization
+
+      // 1. Create configuration with working directory and debug logging
+      var config = ClaudeCodeConfiguration.withNvmSupport()
+      config.workingDirectory = "/Users/jamesrochabrun/Desktop/git/SpeakV2"
+      config.enableDebugLogging = true
+      let homeDir = NSHomeDirectory()
+      // PRIORITY 1: Check for local Claude installation (usually the newest version)
+      // This is typically installed via the Claude installer, not npm
+      let localClaudePath = "\(homeDir)/.claude/local"
+      if FileManager.default.fileExists(atPath: localClaudePath) {
+        // Insert at beginning for highest priority
+        config.additionalPaths.insert(localClaudePath, at: 0)
+      }
+      // PRIORITY 2: Add essential system paths and common development tools
+      // The SDK uses /bin/zsh -l -c which loads the user's shell environment,
+      // so these are mainly fallbacks for tools installed in standard locations
+      config.additionalPaths.append(contentsOf: [
+        "/usr/local/bin",           // Homebrew on Intel Macs, common Unix tools
+        "/opt/homebrew/bin",        // Homebrew on Apple Silicon
+        "/usr/bin",                 // System binaries
+        "\(homeDir)/.bun/bin",      // Bun JavaScript runtime
+        "\(homeDir)/.deno/bin",     // Deno JavaScript runtime
+        "\(homeDir)/.cargo/bin",    // Rust cargo
+        "\(homeDir)/.local/bin"     // Python pip user installs
+      ])
+      
+      
+      
+
+      print("🔧 ConversationManager: Initializing Claude Code with working directory: \(config.workingDirectory ?? "nil")")
+      print("🔧 ConversationManager: Debug logging enabled: \(config.enableDebugLogging)")
+
+      // 2. Create Claude Code client with configuration
+      let claudeClient = try ClaudeCodeClient(configuration: config)
+
+      // 3. Create dependencies (following ClaudeCodeContainer pattern)
+      let sessionStorage = NoOpSessionStorage()
+      let settingsStorage = SettingsStorageManager()
+      let globalPreferences = GlobalPreferencesStorage()
+      let permissionService = DefaultCustomPermissionService()
+
+      // 4. Create ChatViewModel with all dependencies
+      let chatViewModel = ChatViewModel(
+        claudeClient: claudeClient,
+        sessionStorage: sessionStorage,
+        settingsStorage: settingsStorage,
+        globalPreferences: globalPreferences,
+        customPermissionService: permissionService,
+        systemPromptPrefix: nil,
+        shouldManageSessions: false,
+        onSessionChange: nil,
+        onUserMessageSent: nil
+      )
+
+      // 5. Set working directory in view model (following ClaudeCodeContainer pattern)
+      chatViewModel.projectPath = config.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
+      settingsStorage.setProjectPath(config.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2")
+
+      // 6. Create manager with configured view model
+      let manager = ClaudeCodeManager()
+      manager.initialize(chatViewModel: chatViewModel)
+      self.claudeCodeManager = manager
+
+      print("✅ ConversationManager: Claude Code initialized successfully")
+
+    } catch {
+      print("❌ ConversationManager: Failed to initialize Claude Code: \(error)")
+      self.claudeCodeManager = nil
+    }
+  }
 
   /// Handle function/tool calls from the AI
-  private func handleFunctionCall(name: String, arguments: String, callId: String) async {
+  private func handleFunctionCall(name: String, arguments: String, callId: String, session: OpenAIRealtimeSession) async {
     print("📸 Handling function call: \(name)")
 
     switch name {
     case "take_screenshot":
       await handleScreenshotTool(callId: callId)
 
+    case "execute_claude_code":
+      await handleClaudeCodeTool(arguments: arguments, callId: callId, session: session)
+
     default:
       print("⚠️ Unknown function call: \(name)")
     }
   }
-
+  
   /// Handle screenshot tool execution
   private func handleScreenshotTool(callId: String) async {
     print("📸 Executing take_screenshot tool...")
@@ -465,9 +601,120 @@ final class ConversationManager {
     screenshotCapture.clearImage()
   }
 
+  /// Handle Claude Code tool execution
+  private func handleClaudeCodeTool(arguments: String, callId: String, session: OpenAIRealtimeSession) async {
+    print("🤖 Executing execute_claude_code tool...")
+
+    // Parse arguments to extract task
+    guard let task = parseClaudeCodeArguments(arguments) else {
+      print("❌ Failed to parse Claude Code arguments")
+      let errorMessage = "Error: Could not parse Claude Code task from arguments"
+      messages.append(ConversationMessage(
+        text: errorMessage,
+        isUser: false,
+        timestamp: Date(),
+        messageType: .claudeCodeError
+      ))
+
+      // Send error result back to OpenAI
+      await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
+      return
+    }
+
+    print("🤖 Claude Code task: \(task)")
+
+    // Check if Claude Code is initialized
+    guard let claudeCodeManager = claudeCodeManager else {
+      print("❌ Claude Code not initialized")
+      let errorMessage = "Error: Claude Code is not initialized. Please configure your API key and working directory."
+      messages.append(ConversationMessage(
+        text: errorMessage,
+        isUser: false,
+        timestamp: Date(),
+        messageType: .claudeCodeError
+      ))
+
+      // Send error result back to OpenAI
+      await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
+      return
+    }
+
+    // Pause voice mode (mute microphone)
+    let wasMuted = isMicrophoneMuted
+    if !wasMuted {
+      isMicrophoneMuted = true
+      print("🤖 Paused voice mode for Claude Code execution")
+    }
+
+    // Show Claude Code is processing
+    messages.append(ConversationMessage(
+      text: "🤖 Executing Claude Code task: \(task)",
+      isUser: false,
+      timestamp: Date(),
+      messageType: .claudeCodeStart
+    ))
+
+    do {
+      // Execute task and stream progress
+      let result = try await claudeCodeManager.executeTask(task)
+
+      // Add progress updates to conversation
+      for progress in claudeCodeManager.progressUpdates {
+        messages.append(ConversationMessage(
+          text: progress.content,
+          isUser: false,
+          timestamp: progress.timestamp,
+          messageType: .claudeCodeProgress
+        ))
+      }
+
+      // Add final result
+      messages.append(ConversationMessage(
+        text: result,
+        isUser: false,
+        timestamp: Date(),
+        messageType: .claudeCodeResult
+      ))
+
+      print("✅ Claude Code task completed successfully")
+
+      // Send result back to OpenAI so it can speak it
+      await sendFunctionCallOutput(callId: callId, output: result, session: session)
+
+    } catch {
+      print("❌ Claude Code task failed: \(error)")
+      let errorMessage = "Error executing Claude Code: \(error.localizedDescription)"
+      messages.append(ConversationMessage(
+        text: errorMessage,
+        isUser: false,
+        timestamp: Date(),
+        messageType: .claudeCodeError
+      ))
+
+      // Send error result back to OpenAI
+      await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
+    }
+
+    // Resume voice mode (unmute if it wasn't muted before)
+    if !wasMuted {
+      isMicrophoneMuted = false
+      print("🤖 Resumed voice mode after Claude Code execution")
+    }
+  }
+
+  /// Parse Claude Code arguments from JSON string
+  private func parseClaudeCodeArguments(_ arguments: String) -> String? {
+    guard let data = arguments.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let task = json["task"] as? String else {
+      return nil
+    }
+    return task
+  }
+  
   func stopConversation() {
     print("ConversationManager.stopConversation - Stopping...")
-
+    
     // Cancel tasks
     sessionTask?.cancel()
     micTask?.cancel()

@@ -54,15 +54,40 @@ struct MessageBubble: View {
   }
   
   private var messageColor: Color {
-    message.isUser ?
-    Color(red: 0.2, green: 0.9, blue: 0.6) : // Cyan/green for user
-    Color(red: 0.9, green: 0.5, blue: 1.0)   // Magenta for AI
+    switch message.messageType {
+    case .claudeCodeStart:
+      return Color(red: 0.2, green: 0.6, blue: 1.0) // Blue for Claude Code start
+    case .claudeCodeProgress:
+      return Color(red: 0.4, green: 0.7, blue: 1.0) // Light blue for progress
+    case .claudeCodeResult:
+      return Color(red: 0.2, green: 1.0, blue: 0.6) // Green for success
+    case .claudeCodeError:
+      return Color(red: 1.0, green: 0.3, blue: 0.3) // Red for error
+    case .regular:
+      return message.isUser ?
+        Color(red: 0.2, green: 0.9, blue: 0.6) : // Cyan/green for user
+        Color(red: 0.9, green: 0.5, blue: 1.0)   // Magenta for AI
+    }
   }
-  
+
   private var labelColor: Color {
-    message.isUser ?
-    Color(red: 0.3, green: 1.0, blue: 0.7) :
-    Color(red: 1.0, green: 0.6, blue: 1.0)
+    switch message.messageType {
+    case .claudeCodeStart, .claudeCodeProgress, .claudeCodeResult, .claudeCodeError:
+      return Color(red: 0.4, green: 0.8, blue: 1.0) // Claude Code messages
+    case .regular:
+      return message.isUser ?
+        Color(red: 0.3, green: 1.0, blue: 0.7) :
+        Color(red: 1.0, green: 0.6, blue: 1.0)
+    }
+  }
+
+  private var messageLabel: String {
+    switch message.messageType {
+    case .claudeCodeStart, .claudeCodeProgress, .claudeCodeResult, .claudeCodeError:
+      return "Claude Code"
+    case .regular:
+      return message.isUser ? "You" : "AI"
+    }
   }
   
   var body: some View {
@@ -80,11 +105,11 @@ struct MessageBubble: View {
   
   private var messageContent: some View {
     VStack(alignment: message.isUser ? .leading : .trailing, spacing: 4) {
-      Text(message.isUser ? "You" : "AI")
+      Text(messageLabel)
         .font(.caption)
         .fontWeight(.semibold)
         .foregroundStyle(labelColor)
-
+      
       VStack(alignment: message.isUser ? .leading : .trailing, spacing: 6) {
         // Show image if present
         if let imageBase64URL = message.imageBase64URL,
@@ -99,7 +124,7 @@ struct MessageBubble: View {
                 .stroke(messageColor.opacity(0.4), lineWidth: 1)
             )
         }
-
+        
         // Message text
         Text(message.text)
           .font(.body)
@@ -118,19 +143,19 @@ struct MessageBubble: View {
     }
     .frame(maxWidth: 250, alignment: message.isUser ? .leading : .trailing)
   }
-
+  
   private func decodeBase64Image(_ base64DataURL: String) -> NSImage? {
     // Extract base64 string from data URL
     // Format: "data:image/{format};base64,{base64_string}"
     guard let commaIndex = base64DataURL.firstIndex(of: ",") else {
       return nil
     }
-
+    
     let base64String = String(base64DataURL[base64DataURL.index(after: commaIndex)...])
     guard let imageData = Data(base64Encoded: base64String) else {
       return nil
     }
-
+    
     return NSImage(data: imageData)
   }
 }

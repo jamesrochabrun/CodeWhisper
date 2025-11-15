@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ClaudeCodeCore
 
 struct VoiceModeView: View {
   @Environment(OpenAIServiceManager.self) private var serviceManager
@@ -179,8 +180,12 @@ struct VoiceModeView: View {
       isInitializing = false
       return
     }
-    
+
     isInitializing = true
+
+    // Initialize Claude Code integration
+    conversationManager.initializeClaudeCode()
+
     let configuration = serviceManager.createSessionConfiguration()
     await conversationManager.startConversation(service: service, configuration: configuration)
     isInitializing = false

@@ -96,6 +96,24 @@ final class OpenAIServiceManager {
     tools.append(.function(screenshotTool))
     print("🔧 Function Tools: Added 'take_screenshot' function tool")
 
+    // Add Claude Code execution function tool
+    let claudeCodeTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
+      name: "execute_claude_code",
+      description: "Execute coding tasks using Claude Code CLI. Use this when the user says 'Claude Code' followed by a task, or requests file changes, code generation, refactoring, debugging, or other development tasks. The tool will pause voice conversation, execute the task, and return results.",
+      parameters: [
+        "type": "object",
+        "properties": [
+          "task": [
+            "type": "string",
+            "description": "The coding task or instruction to execute. Be specific and include context about what files to modify, what to create, or what problem to solve."
+          ]
+        ],
+        "required": ["task"]
+      ]
+    )
+    tools.append(.function(claudeCodeTool))
+    print("🔧 Function Tools: Added 'execute_claude_code' function tool")
+
     // Add MCP server tools if configured
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
       print("🔧 MCP: Configuring \(mcpManager.servers.count) server(s)")
