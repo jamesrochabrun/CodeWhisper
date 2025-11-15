@@ -74,13 +74,33 @@ final class OpenAIServiceManager {
 
   /// Creates an OpenAI Realtime Session Configuration from current settings
   func createSessionConfiguration() -> OpenAIRealtimeSessionConfiguration {
-    // Build tools array with MCP servers if configured
-    var tools: [OpenAIRealtimeSessionConfiguration.RealtimeTool]? = nil
+    // Build tools array with function tools and MCP servers
+    var tools: [OpenAIRealtimeSessionConfiguration.RealtimeTool] = []
 
+    // Add screenshot function tool
+    let screenshotTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
+      name: "take_screenshot",
+      description: "Captures a screenshot of the user's screen. Use this when the user asks to take a screenshot, capture the screen, or show you what's on their screen.",
+      parameters: [
+        "type": "object",
+        "properties": [
+          "capture_type": [
+            "type": "string",
+            "enum": ["full_screen"],
+            "description": "The type of screenshot to capture. Currently only supports full_screen."
+          ]
+        ],
+        "required": []
+      ]
+    )
+    tools.append(.function(screenshotTool))
+    print("🔧 Function Tools: Added 'take_screenshot' function tool")
+
+    // Add MCP server tools if configured
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
       print("🔧 MCP: Configuring \(mcpManager.servers.count) server(s)")
 
-      tools = mcpManager.servers.map { serverConfig in
+      let mcpTools = mcpManager.servers.map { serverConfig in
         print("🔧 MCP Server Config:")
         print("   - Label: \(serverConfig.label)")
         print("   - URL: \(serverConfig.serverUrl)")
@@ -98,13 +118,16 @@ final class OpenAIServiceManager {
           requireApproval: serverConfig.requireApproval == "never" ? .never : .always,
           serverUrl: serverConfig.serverUrl
         )
-        return .mcp(mcpTool)
+        return OpenAIRealtimeSessionConfiguration.RealtimeTool.mcp(mcpTool)
       }
 
-      print("🔧 MCP: Created \(tools?.count ?? 0) tool(s) for session")
+      tools.append(contentsOf: mcpTools)
+      print("🔧 MCP: Added \(mcpTools.count) MCP tool(s)")
     } else {
       print("🔧 MCP: No servers configured")
     }
+
+    print("🔧 Total tools configured: \(tools.count)")
 
     let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,

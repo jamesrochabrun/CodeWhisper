@@ -66,14 +66,17 @@ final class ConversationManager {
 
   // Conversation messages
   private(set) var messages: [ConversationMessage] = []
-  
+
+  // Screenshot capture
+  private let screenshotCapture = ScreenshotCapture()
+
   // Smoothing for visual transitions
   private var smoothedAudioLevel: Float = 0.0
   private var smoothedAiAudioLevel: Float = 0.0
   private var smoothedLowFreq: Float = 0.0
   private var smoothedMidFreq: Float = 0.0
   private var smoothedHighFreq: Float = 0.0
-  
+
   private var realtimeSession: OpenAIRealtimeSession?
   private var audioController: AudioController?
   private var sessionTask: Task<Void, Never>?
@@ -296,8 +299,8 @@ final class ConversationManager {
       
     case .responseFunctionCallArgumentsDone(let name, let args, let callId):
       print("Function call: \(name)(\(args)) - callId: \(callId)")
-      // Handle function calls here if needed
-      
+      await handleFunctionCall(name: name, arguments: args, callId: callId)
+
     case .sessionCreated:
       print("Session created")
       
@@ -418,6 +421,48 @@ final class ConversationManager {
   func toggleMicrophoneMute() {
     isMicrophoneMuted.toggle()
     print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
+  }
+
+  /// Handle function/tool calls from the AI
+  private func handleFunctionCall(name: String, arguments: String, callId: String) async {
+    print("📸 Handling function call: \(name)")
+
+    switch name {
+    case "take_screenshot":
+      await handleScreenshotTool(callId: callId)
+
+    default:
+      print("⚠️ Unknown function call: \(name)")
+    }
+  }
+
+  /// Handle screenshot tool execution
+  private func handleScreenshotTool(callId: String) async {
+    print("📸 Executing take_screenshot tool...")
+
+    // Capture screenshot
+    await screenshotCapture.captureScreenshot()
+
+    // Check if capture was successful
+    guard let capturedImage = screenshotCapture.capturedImage else {
+      print("❌ Screenshot capture failed: \(screenshotCapture.errorMessage ?? "Unknown error")")
+      // TODO: Send error result back to OpenAI
+      return
+    }
+
+    // Convert to base64
+    guard let base64URL = screenshotCapture.convertToBase64DataURL(capturedImage) else {
+      print("❌ Failed to convert screenshot to base64")
+      return
+    }
+
+    print("✅ Screenshot captured successfully")
+
+    // Send the screenshot as an image message
+    await sendImage(base64URL, text: "I've captured a screenshot as requested. Here's what's on the screen:")
+
+    // Clear the captured image
+    screenshotCapture.clearImage()
   }
 
   func stopConversation() {
