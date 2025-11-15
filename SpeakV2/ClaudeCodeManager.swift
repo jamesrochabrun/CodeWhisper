@@ -198,73 +198,136 @@ final class ClaudeCodeManager {
 
     switch message.messageType {
     case .thinking:
-      // Claude's internal reasoning
-      if !message.content.isEmpty {
-        addProgress(.thinking, content: "💭 Thinking: \(message.content)")
-      }
+      // Skip thinking messages - too verbose
+      break
 
     case .toolUse:
       // Tool invocation (Read, Edit, Bash, etc.)
       let toolName = message.toolName ?? "Unknown Tool"
-      // Extract parameters from content if available
-      let params = extractToolParameters(from: message.content, toolName: toolName)
+      let actionText = formatToolAction(toolName: toolName, parameters: message.content)
       addProgress(
-        .toolCall(name: toolName, parameters: params),
-        content: "🔧 Using tool: \(toolName)\(params.isEmpty ? "" : "\n   \(params)")"
+        .toolCall(name: toolName, parameters: ""),
+        content: actionText
       )
 
     case .toolResult:
-      // Tool execution result
+      // Tool execution result (truncated)
       if !message.content.isEmpty {
-        addProgress(.result, content: "✅ Result: \(message.content)")
+        let truncated = truncateContent(message.content, maxChars: 80)
+        addProgress(.result, content: "Result: \(truncated)")
       }
 
     case .toolError:
-      // Tool execution error
+      // Tool execution error (truncated)
       if !message.content.isEmpty {
-        addProgress(.error, content: "❌ Error: \(message.content)")
+        let truncated = truncateContent(message.content, maxChars: 80)
+        addProgress(.error, content: "Error: \(truncated)")
       }
 
     case .text:
-      // Regular text response from Claude
+      // Regular text response from Claude (truncated)
       if !message.content.isEmpty && message.role == .assistant {
-        addProgress(.result, content: message.content)
+        let truncated = truncateContent(message.content, maxChars: 80)
+        addProgress(.result, content: truncated)
       }
 
     case .webSearch:
-      // Web search results
+      // Web search
       if !message.content.isEmpty {
-        addProgress(.result, content: "🔍 Web search: \(message.content)")
+        addProgress(.result, content: "Searching web")
       }
 
     case .toolDenied:
       // User denied tool permission
       if !message.content.isEmpty {
-        addProgress(.error, content: "🚫 Tool denied: \(message.content)")
+        addProgress(.error, content: "Tool access denied")
       }
 
     case .codeExecution:
-      // Code execution results
+      // Code execution
       if !message.content.isEmpty {
-        addProgress(.result, content: "💻 Code execution: \(message.content)")
+        let truncated = truncateContent(message.content, maxChars: 80)
+        addProgress(.result, content: "Executed: \(truncated)")
       }
     }
   }
 
-  /// Extract tool parameters from content string for display
-  private func extractToolParameters(from content: String, toolName: String) -> String {
-    // The content field contains the tool parameters
-    // For now, show a truncated version to avoid clutter
-    let maxLength = 100
-    let truncated = content.prefix(maxLength)
-
-    if content.count > maxLength {
-      return String(truncated) + "..."
-    } else if !content.isEmpty {
-      return content
+  /// Convert tool name to action verb and extract target
+  private func formatToolAction(toolName: String, parameters: String) -> String {
+    // Convert tool name to action verb
+    let action: String
+    switch toolName {
+    case "Read": action = "Reading"
+    case "Edit": action = "Editing"
+    case "Write": action = "Writing"
+    case "Bash": action = "Running"
+    case "Grep": action = "Searching"
+    case "Glob": action = "Finding"
+    case "WebFetch": action = "Fetching"
+    case "WebSearch": action = "Searching"
+    case "Task": action = "Starting task"
+    default: action = toolName
     }
 
-    return ""
+    // Extract target from parameters
+    let target = extractToolTarget(from: parameters, toolName: toolName)
+
+    if target.isEmpty {
+      return action
+    } else {
+      return "\(action) \(target)"
+    }
+  }
+
+  /// Extract the main target from tool parameters (file path, command, etc.)
+  private func extractToolTarget(from parameters: String, toolName: String) -> String {
+    // Try to parse JSON parameters
+    guard let data = parameters.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      return ""
+    }
+
+    // Extract relevant field based on tool type
+    let targetField: String
+    switch toolName {
+    case "Read", "Edit", "Write":
+      targetField = "file_path"
+    case "Bash":
+      targetField = "command"
+    case "Grep":
+      targetField = "pattern"
+    case "Glob":
+      targetField = "pattern"
+    case "WebFetch", "WebSearch":
+      targetField = "url"
+    default:
+      return ""
+    }
+
+    guard let value = json[targetField] as? String else {
+      return ""
+    }
+
+    // For file paths, show just the filename
+    if targetField == "file_path" {
+      let filename = (value as NSString).lastPathComponent
+      return filename
+    }
+
+    // For commands/patterns, truncate if needed
+    if value.count > 40 {
+      return String(value.prefix(40)) + "..."
+    }
+
+    return value
+  }
+
+  /// Truncate content to specified character limit
+  private func truncateContent(_ content: String, maxChars: Int) -> String {
+    if content.count > maxChars {
+      return String(content.prefix(maxChars)) + "..."
+    }
+    return content
   }
 
   private func addProgress(_ type: ClaudeCodeProgress.ProgressType, content: String) {

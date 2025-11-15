@@ -74,17 +74,27 @@ struct StoryMessageView: View {
   private var textColor: Color {
     switch message.messageType {
     case .claudeCodeStart:
-      return Color(red: 0.4, green: 0.7, blue: 1.0)  // Blue
+      return .white  // White for consistency
     case .claudeCodeProgress:
-      return Color(red: 0.6, green: 0.8, blue: 1.0)  // Light blue
+      return .white  // White instead of light blue
     case .claudeCodeResult:
-      return Color(red: 0.4, green: 1.0, blue: 0.7)  // Green
+      return .white  // White instead of green
     case .claudeCodeError:
-      return Color(red: 1.0, green: 0.4, blue: 0.4)  // Red
+      return Color(red: 1.0, green: 0.4, blue: 0.4)  // Keep red for errors
     case .regular:
       return message.isUser ?
         Color(red: 0.7, green: 0.7, blue: 0.7) :  // Gray for user
         Color.white  // White for assistant
+    }
+  }
+
+  private var shouldBeBold: Bool {
+    // Bold text for Claude Code messages
+    switch message.messageType {
+    case .claudeCodeStart, .claudeCodeProgress, .claudeCodeResult:
+      return true
+    case .claudeCodeError, .regular:
+      return false
     }
   }
 
@@ -95,6 +105,7 @@ struct StoryMessageView: View {
         Text(messagePrefix)
           .font(.body)
           .foregroundStyle(textColor)
+          .fontWeight(shouldBeBold ? .bold : .regular)
       }
 
       VStack(alignment: .leading, spacing: 6) {
@@ -113,6 +124,7 @@ struct StoryMessageView: View {
         Text(message.text)
           .font(.body)
           .foregroundStyle(textColor)
+          .fontWeight(shouldBeBold ? .bold : .regular)
           .textSelection(.enabled)
           .fixedSize(horizontal: false, vertical: true)
       }
