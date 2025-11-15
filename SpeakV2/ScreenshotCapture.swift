@@ -17,42 +17,14 @@ class ScreenshotCapture {
   var isCapturing = false
   var errorMessage: String?
 
-  /// Check if screen recording permission is granted
-  private func checkScreenRecordingPermission() -> Bool {
-    // CGPreflightScreenCaptureAccess() checks if permission is granted
-    // without triggering a permission prompt
-    return CGPreflightScreenCaptureAccess()
-  }
-
-  /// Request screen recording permission if not already granted
-  private func requestScreenRecordingPermission() -> Bool {
-    // CGRequestScreenCaptureAccess() will prompt the user if not already granted
-    // Returns true if already granted or user grants it
-    if checkScreenRecordingPermission() {
-      print("Screen recording permission: already granted")
-      return true
-    }
-
-    print("Requesting screen recording permission...")
-    let granted = CGRequestScreenCaptureAccess()
-    print("Screen recording permission: \(granted ? "granted" : "denied")")
-    return granted
-  }
-
   /// Capture a screenshot using the system screenshot picker
   func captureScreenshot() async {
     isCapturing = true
     errorMessage = nil
 
-    // Check permission before attempting capture
-    guard checkScreenRecordingPermission() else {
-      errorMessage = "Screen recording permission is required. Please grant permission in System Settings > Privacy & Security > Screen Recording."
-      isCapturing = false
-      return
-    }
-
     do {
       // Get available content for screen capture
+      // This will automatically prompt for permission on first use
       let content = try await SCShareableContent.current
 
       guard let display = content.displays.first else {
@@ -91,13 +63,6 @@ class ScreenshotCapture {
   func captureWindow(_ window: SCWindow) async {
     isCapturing = true
     errorMessage = nil
-
-    // Check permission before attempting capture
-    guard checkScreenRecordingPermission() else {
-      errorMessage = "Screen recording permission is required. Please grant permission in System Settings > Privacy & Security > Screen Recording."
-      isCapturing = false
-      return
-    }
 
     do {
       // Create filter for specific window
@@ -269,15 +234,8 @@ struct ScreenshotPickerView: View {
   }
 
   private func loadAvailableWindows() async {
-    // Check permission before attempting to load windows
-    guard CGPreflightScreenCaptureAccess() else {
-      print("Screen recording permission not granted - skipping window list load")
-      // Don't set error message here, just skip loading windows
-      // The actual capture will show the error if user tries to use it
-      return
-    }
-
     do {
+      // Get available content - this will prompt for permission on first use
       let content = try await SCShareableContent.current
       availableWindows = content.windows.filter { window in
         window.owningApplication?.applicationName != "SpeakV2" &&
