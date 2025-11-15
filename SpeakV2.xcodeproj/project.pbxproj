@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7B64FD802EC7155100237379 /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7B64FD7F2EC7155100237379 /* SwiftOpenAI */; };
+		7B8F71382EC83D58003A51F3 /* ClaudeCodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B8F71382EC83D58003A51F3 /* ClaudeCodeCore in Frameworks */,
 				7B64FD802EC7155100237379 /* SwiftOpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -118,6 +120,7 @@
 			name = SpeakV2;
 			packageProductDependencies = (
 				7B64FD7F2EC7155100237379 /* SwiftOpenAI */,
+				7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */,
 			);
 			productName = SpeakV2;
 			productReference = 7B7BC8D62EC1BEA80031D849 /* SpeakV2.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				7B64FD7E2EC7155100237379 /* XCLocalSwiftPackageReference "../SwiftOpenAI" */,
+				7B8F71362EC83D58003A51F3 /* XCLocalSwiftPackageReference "../ClaudeCodeUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B7BC8D72EC1BEA80031D849 /* Products */;
@@ -636,6 +640,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../SwiftOpenAI;
 		};
+		7B8F71362EC83D58003A51F3 /* XCLocalSwiftPackageReference "../ClaudeCodeUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ClaudeCodeUI;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -643,6 +651,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7B64FD7E2EC7155100237379 /* XCLocalSwiftPackageReference "../SwiftOpenAI" */;
 			productName = SwiftOpenAI;
+		};
+		7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ClaudeCodeCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

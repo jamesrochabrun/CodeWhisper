@@ -655,11 +655,51 @@ final class ConversationManager {
     ))
 
     do {
-      // Execute task and stream progress
+      // Start observing progress updates in parallel with execution
+      let observationTask = Task {
+        var lastProgressCount = 0
+
+        while !Task.isCancelled {
+          let currentProgressCount = claudeCodeManager.progressUpdates.count
+
+          // Add new progress updates to conversation as they arrive
+          if currentProgressCount > lastProgressCount {
+            let newProgress = claudeCodeManager.progressUpdates[lastProgressCount...]
+            print("📨 ConversationManager: Adding \(newProgress.count) new progress update(s)")
+
+            await MainActor.run {
+              for progress in newProgress {
+                self.messages.append(ConversationMessage(
+                  text: progress.content,
+                  isUser: false,
+                  timestamp: progress.timestamp,
+                  messageType: .claudeCodeProgress
+                ))
+              }
+            }
+
+            lastProgressCount = currentProgressCount
+          }
+
+          // Check if execution is complete
+          if claudeCodeManager.state == .completed || claudeCodeManager.state == .error("") {
+            break
+          }
+
+          // Poll every 50ms for responsive updates
+          try? await Task.sleep(for: .milliseconds(50))
+        }
+      }
+
+      // Execute task (this blocks until complete)
       let result = try await claudeCodeManager.executeTask(task)
 
-      // Add progress updates to conversation
-      for progress in claudeCodeManager.progressUpdates {
+      // Cancel observation task
+      observationTask.cancel()
+
+      // Process any remaining progress updates
+      let remainingProgress = claudeCodeManager.progressUpdates[messages.filter({ $0.messageType == .claudeCodeProgress }).count...]
+      for progress in remainingProgress {
         messages.append(ConversationMessage(
           text: progress.content,
           isUser: false,
