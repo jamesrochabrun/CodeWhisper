@@ -24,7 +24,7 @@ class ScreenshotCapture {
 
     do {
       // Get available content for screen capture
-      // This will automatically prompt for permission on first use
+      // This will automatically trigger the system permission dialog on first use
       let content = try await SCShareableContent.current
 
       guard let display = content.displays.first else {
@@ -54,7 +54,7 @@ class ScreenshotCapture {
       isCapturing = false
 
     } catch {
-      errorMessage = "Failed to capture screenshot: \(error.localizedDescription)"
+      errorMessage = "Failed to capture screenshot: \(error.localizedDescription)\n\nIf you denied screen recording permission, you'll need to grant it in System Settings."
       isCapturing = false
     }
   }
@@ -86,7 +86,7 @@ class ScreenshotCapture {
       isCapturing = false
 
     } catch {
-      errorMessage = "Failed to capture window: \(error.localizedDescription)"
+      errorMessage = "Failed to capture window: \(error.localizedDescription)\n\nIf you denied screen recording permission, you'll need to grant it in System Settings."
       isCapturing = false
     }
   }
@@ -149,11 +149,21 @@ struct ScreenshotPickerView: View {
         .fontWeight(.semibold)
 
       if let errorMessage = capture.errorMessage {
-        Text(errorMessage)
-          .foregroundColor(.red)
-          .padding()
-          .background(Color.red.opacity(0.1))
-          .cornerRadius(8)
+        VStack(spacing: 12) {
+          Text(errorMessage)
+            .foregroundColor(.red)
+            .multilineTextAlignment(.center)
+            .padding()
+            .background(Color.red.opacity(0.1))
+            .cornerRadius(8)
+
+          Button("Open System Settings") {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+              NSWorkspace.shared.open(url)
+            }
+          }
+          .buttonStyle(.borderedProminent)
+        }
       }
 
       if let image = capture.capturedImage {
@@ -235,7 +245,7 @@ struct ScreenshotPickerView: View {
 
   private func loadAvailableWindows() async {
     do {
-      // Get available content - this will prompt for permission on first use
+      // Get available content - this will trigger permission dialog on first use
       let content = try await SCShareableContent.current
       availableWindows = content.windows.filter { window in
         window.owningApplication?.applicationName != "SpeakV2" &&
@@ -243,7 +253,8 @@ struct ScreenshotPickerView: View {
         !window.title!.isEmpty
       }
     } catch {
-      capture.errorMessage = "Failed to load windows: \(error.localizedDescription)"
+      // Silently fail to load windows - user can still capture full screen
+      // If permission was denied, they'll get a proper error when they try to capture
     }
   }
 }
