@@ -11,7 +11,7 @@ import SwiftOpenAI
 import AVFoundation
 import ClaudeCodeCore
 import ClaudeCodeSDK
-import CCCustomPermissionServiceInterface
+import CCCustomPermissionService
 
 // Actor to safely share state between MainActor and RealtimeActor
 actor ReadyState {
@@ -490,7 +490,7 @@ final class ConversationManager {
   }
 
   /// Initialize Claude Code manager
-  func initializeClaudeCode(permissionService: CustomPermissionService) {
+  func initializeClaudeCode() {
     do {
       // Following ClaudeCodeContainer pattern for proper initialization
 
@@ -518,9 +518,9 @@ final class ConversationManager {
         "\(homeDir)/.cargo/bin",    // Rust cargo
         "\(homeDir)/.local/bin"     // Python pip user installs
       ])
-
-
-
+      
+      
+      
 
       print("🔧 ConversationManager: Initializing Claude Code with working directory: \(config.workingDirectory ?? "nil")")
       print("🔧 ConversationManager: Debug logging enabled: \(config.enableDebugLogging)")
@@ -532,27 +532,9 @@ final class ConversationManager {
       let sessionStorage = NoOpSessionStorage()
       let settingsStorage = SettingsStorageManager()
       let globalPreferences = GlobalPreferencesStorage()
-      // Use the shared permissionService passed from the app (connected to ApprovalBridge)
-      print("[MCPPERMISSION] 📋 Using shared permission service (connected to ApprovalBridge)")
-
-      // Configure MCP approval server
-      print("[MCPPERMISSION] 🚀 Initializing MCP configuration...")
-      let mcpConfigManager = MCPConfigurationManager()
-      print("[MCPPERMISSION] 🔧 Updating approval server path...")
-      mcpConfigManager.updateApprovalServerPath()
-
-      // Set config path so ChatViewModel uses approval server
-      print("[MCPPERMISSION] 📍 Getting configuration path...")
-      if let configPath = mcpConfigManager.getConfigurationPath() {
-        globalPreferences.mcpConfigPath = configPath
-        print("[MCPPERMISSION] ✅ MCP config path set in globalPreferences: \(configPath)")
-      } else {
-        print("[MCPPERMISSION] ❌ Failed to get MCP config path")
-      }
+      let permissionService = DefaultCustomPermissionService()
 
       // 4. Create ChatViewModel with all dependencies
-      print("[MCPPERMISSION] 🎬 Creating ChatViewModel with globalPreferences...")
-      print("[MCPPERMISSION] 📋 globalPreferences.mcpConfigPath = \(globalPreferences.mcpConfigPath ?? "nil")")
       let chatViewModel = ChatViewModel(
         claudeClient: claudeClient,
         sessionStorage: sessionStorage,
@@ -564,7 +546,6 @@ final class ConversationManager {
         onSessionChange: nil,
         onUserMessageSent: nil
       )
-      print("[MCPPERMISSION] ✅ ChatViewModel created")
 
       // 5. Set permission mode from settings
       let permissionMode: ClaudeCodeSDK.PermissionMode = (settingsManager?.bypassPermissions == true) ? .bypassPermissions : .default
