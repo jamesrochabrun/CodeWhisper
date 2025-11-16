@@ -662,7 +662,7 @@ final class ConversationManager {
 
     // Show Claude Code is processing
     messages.append(ConversationMessage(
-      text: "Executing: \(task)",
+      text: "\(task)",
       isUser: false,
       timestamp: Date(),
       messageType: .claudeCodeStart

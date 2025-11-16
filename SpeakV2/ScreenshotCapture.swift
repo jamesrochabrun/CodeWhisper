@@ -210,8 +210,14 @@ struct ScreenshotPickerView: View {
             Picker("Select Window", selection: $selectedWindow) {
               Text("Choose a window...").tag(nil as SCWindow?)
               ForEach(availableWindows, id: \.windowID) { window in
-                Text(window.title ?? "Untitled Window")
-                  .tag(window as SCWindow?)
+                if let appName = window.owningApplication?.applicationName,
+                   let title = window.title {
+                  Text("\(appName): \(title)")
+                    .tag(window as SCWindow?)
+                } else {
+                  Text(window.title ?? "Untitled Window")
+                    .tag(window as SCWindow?)
+                }
               }
             }
             .labelsHidden()
@@ -247,10 +253,41 @@ struct ScreenshotPickerView: View {
     do {
       // Get available content - this will trigger permission dialog on first use
       let content = try await SCShareableContent.current
+
       availableWindows = content.windows.filter { window in
-        window.owningApplication?.applicationName != "SpeakV2" &&
-        window.title != nil &&
-        !window.title!.isEmpty
+        // Exclude our own app
+        guard window.owningApplication?.applicationName != "SpeakV2" else { return false }
+
+        // Require a non-empty title
+        guard let title = window.title, !title.isEmpty else { return false }
+
+        // Filter out tiny windows (likely cursors, icons, UI elements)
+        // Minimum size of 200x200 pixels for a meaningful window
+        let minSize: CGFloat = 200
+        guard window.frame.width >= minSize && window.frame.height >= minSize else { return false }
+
+        // Only include windows that are on-screen
+        guard window.isOnScreen else { return false }
+
+        // Exclude system processes and common utilities
+        if let appName = window.owningApplication?.applicationName {
+          let systemApps = ["Window Server", "Dock", "SystemUIServer", "ControlCenter",
+                           "Notification Center", "Spotlight", "Siri"]
+          if systemApps.contains(appName) { return false }
+        }
+
+        return true
+      }
+
+      // Sort windows by application name, then by title for better organization
+      availableWindows.sort { lhs, rhs in
+        let lhsApp = lhs.owningApplication?.applicationName ?? ""
+        let rhsApp = rhs.owningApplication?.applicationName ?? ""
+
+        if lhsApp != rhsApp {
+          return lhsApp < rhsApp
+        }
+        return (lhs.title ?? "") < (rhs.title ?? "")
       }
     } catch {
       // Silently fail to load windows - user can still capture full screen
