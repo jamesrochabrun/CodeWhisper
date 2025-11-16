@@ -643,12 +643,12 @@ final class ConversationManager {
     let wasMuted = isMicrophoneMuted
     if !wasMuted {
       isMicrophoneMuted = true
-      print("🤖 Paused voice mode for Claude Code execution")
+      print("Paused voice mode for Code execution")
     }
 
     // Show Claude Code is processing
     messages.append(ConversationMessage(
-      text: "🤖 Executing Claude Code task: \(task)",
+      text: "Executing Coding task: \(task)",
       isUser: false,
       timestamp: Date(),
       messageType: .claudeCodeStart
@@ -698,14 +698,22 @@ final class ConversationManager {
       observationTask.cancel()
 
       // Process any remaining progress updates
-      let remainingProgress = claudeCodeManager.progressUpdates[messages.filter({ $0.messageType == .claudeCodeProgress }).count...]
-      for progress in remainingProgress {
-        messages.append(ConversationMessage(
-          text: progress.content,
-          isUser: false,
-          timestamp: progress.timestamp,
-          messageType: .claudeCodeProgress
-        ))
+      let processedCount = messages.filter({ $0.messageType == .claudeCodeProgress }).count
+      let totalProgressCount = claudeCodeManager.progressUpdates.count
+
+      if processedCount < totalProgressCount {
+        print("📊 Processing \(totalProgressCount - processedCount) remaining progress updates")
+        let remainingProgress = claudeCodeManager.progressUpdates[processedCount...]
+        for progress in remainingProgress {
+          messages.append(ConversationMessage(
+            text: progress.content,
+            isUser: false,
+            timestamp: progress.timestamp,
+            messageType: .claudeCodeProgress
+          ))
+        }
+      } else {
+        print("📊 All \(totalProgressCount) progress updates already processed")
       }
 
       // Add final result
@@ -723,7 +731,7 @@ final class ConversationManager {
 
     } catch {
       print("❌ Claude Code task failed: \(error)")
-      let errorMessage = "Error executing Claude Code: \(error.localizedDescription)"
+      let errorMessage = "Error Claude Code: \(error.localizedDescription)"
       messages.append(ConversationMessage(
         text: errorMessage,
         isUser: false,
