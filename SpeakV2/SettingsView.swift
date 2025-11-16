@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
   @Environment(SettingsManager.self) private var settings
@@ -28,6 +29,30 @@ struct SettingsView: View {
           Text("OpenAI Configuration")
         } footer: {
           Text("Your API key is stored locally and only used to authenticate with OpenAI's Realtime API.")
+            .font(.caption)
+        }
+
+        Section {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Working Directory")
+              .font(.headline)
+
+            Text(settingsManager.workingDirectory)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(2)
+              .truncationMode(.middle)
+              .textSelection(.enabled)
+
+            Button("Choose Directory") {
+              showDirectoryPicker()
+            }
+          }
+          .padding(.vertical, 4)
+        } header: {
+          Text("Claude Code")
+        } footer: {
+          Text("Select the directory where Claude Code will execute commands and access files.")
             .font(.caption)
         }
 
@@ -78,6 +103,22 @@ struct SettingsView: View {
       }
     }
     .frame(minWidth: 900, minHeight: 400)
+  }
+
+  private func showDirectoryPicker() {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = false
+    panel.canChooseDirectories = true
+    panel.allowsMultipleSelection = false
+    panel.canCreateDirectories = false
+    panel.message = "Select working directory for Claude Code"
+    panel.prompt = "Select"
+
+    if panel.runModal() == .OK {
+      if let url = panel.url {
+        settings.setWorkingDirectory(url.path)
+      }
+    }
   }
 }
 

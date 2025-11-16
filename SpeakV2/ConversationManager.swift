@@ -93,6 +93,9 @@ final class ConversationManager {
   // Claude Code manager
   private var claudeCodeManager: ClaudeCodeManager?
 
+  // Settings manager
+  private var settingsManager: SettingsManager?
+
   // Smoothing for visual transitions
   private var smoothedAudioLevel: Float = 0.0
   private var smoothedAiAudioLevel: Float = 0.0
@@ -481,6 +484,11 @@ final class ConversationManager {
     print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
   }
   
+  /// Set settings manager for working directory configuration
+  func setSettingsManager(_ manager: SettingsManager) {
+    self.settingsManager = manager
+  }
+
   /// Initialize Claude Code manager
   func initializeClaudeCode() {
     do {
@@ -488,7 +496,7 @@ final class ConversationManager {
 
       // 1. Create configuration with working directory and debug logging
       var config = ClaudeCodeConfiguration.withNvmSupport()
-      config.workingDirectory = "/Users/jamesrochabrun/Desktop/git/SpeakV2"
+      config.workingDirectory = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
       config.enableDebugLogging = true
       let homeDir = NSHomeDirectory()
       // PRIORITY 1: Check for local Claude installation (usually the newest version)
@@ -540,8 +548,9 @@ final class ConversationManager {
       )
 
       // 5. Set working directory in view model (following ClaudeCodeContainer pattern)
-      chatViewModel.projectPath = config.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
-      settingsStorage.setProjectPath(config.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2")
+      let workingDir = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
+      chatViewModel.projectPath = config.workingDirectory ?? workingDir
+      settingsStorage.setProjectPath(config.workingDirectory ?? workingDir)
 
       // 6. Create manager with configured view model
       let manager = ClaudeCodeManager()
@@ -648,7 +657,7 @@ final class ConversationManager {
 
     // Show Claude Code is processing
     messages.append(ConversationMessage(
-      text: "Executing Coding task: \(task)",
+      text: "Executing: \(task)",
       isUser: false,
       timestamp: Date(),
       messageType: .claudeCodeStart

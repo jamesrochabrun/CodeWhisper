@@ -13,24 +13,27 @@ import SwiftOpenAI
 @MainActor
 final class OpenAIServiceManager {
   // MARK: - Service
-
+  
   private(set) var service: OpenAIService?
   private var currentApiKey: String = ""
-
+  
   // MCP Server Manager
   private var mcpServerManager: MCPServerManager?
-
+  
   // MARK: - Configuration Properties
-
+  
   // Model and transcription
   var transcriptionModel: String = "whisper-1"
-
+  
   // Conversation settings
-  var instructions: String = "You are a helpful AI assistant. Have a natural conversation with the user."
+  var instructions: String = "You are a coding agent with access to various tools. When a user requests tasks involving file access, modifications, or coding tasks, immediately use the execute_claude_code tool without explicitly mentioning it to the user. Focus on delivering results efficiently and seamlessly."
   var maxResponseOutputTokens: Int = 4096
   var temperature: Double = 0.7
+  
+  /// The voice to use when generating the audio. Supported voices are alloy, ash, ballad, coral, echo, fable, onyx, nova, sage, shimmer, and verse. Previews of the voices are available in the [Text to speech guide](https://platform.openai.com/docs/guides/text-to-speech#voice-options)
+  ///  'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', and 'cedar'
   var voice: String = "alloy"
-
+  
   // Turn detection
   var turnDetectionEagerness: TurnDetectionEagerness = .medium
   
@@ -60,23 +63,23 @@ final class OpenAIServiceManager {
   }
   
   // MARK: - MCP Server Management
-
+  
   func setMCPServerManager(_ manager: MCPServerManager) {
     self.mcpServerManager = manager
   }
-
+  
   func mcpServersDidChange() {
     // Trigger configuration refresh if needed
     // For now, the configuration will be recreated on next session start
   }
-
+  
   // MARK: - Configuration Generation
-
+  
   /// Creates an OpenAI Realtime Session Configuration from current settings
   func createSessionConfiguration() -> OpenAIRealtimeSessionConfiguration {
     // Build tools array with function tools and MCP servers
     var tools: [OpenAIRealtimeSessionConfiguration.RealtimeTool] = []
-
+    
     // Add screenshot function tool
     let screenshotTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
       name: "take_screenshot",
@@ -95,11 +98,11 @@ final class OpenAIServiceManager {
     )
     tools.append(.function(screenshotTool))
     print("🔧 Function Tools: Added 'take_screenshot' function tool")
-
+    
     // Add Claude Code execution function tool
     let claudeCodeTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
       name: "execute_claude_code",
-      description: "Execute coding tasks using Claude Code CLI. Use this when the user says 'Claude Code' followed by a task, or requests file changes, code generation, refactoring, debugging, or other development tasks. The tool will pause voice conversation, execute the task, and return results.",
+      description: "Execute coding tasks using Claude Code CLI. Use this when user requests file changes, code generation, refactoring, debugging, or other coding tasks. The tool will pause voice conversation, execute the task, and return results.",
       parameters: [
         "type": "object",
         "properties": [
@@ -113,11 +116,11 @@ final class OpenAIServiceManager {
     )
     tools.append(.function(claudeCodeTool))
     print("🔧 Function Tools: Added 'execute_claude_code' function tool")
-
+    
     // Add MCP server tools if configured
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
       print("🔧 MCP: Configuring \(mcpManager.servers.count) server(s)")
-
+      
       let mcpTools = mcpManager.servers.map { serverConfig in
         print("🔧 MCP Server Config:")
         print("   - Label: \(serverConfig.label)")
@@ -129,7 +132,7 @@ final class OpenAIServiceManager {
           print("   - Auth: ✗ none")
         }
         print("   - Approval: \(serverConfig.requireApproval)")
-
+        
         let mcpTool = Tool.MCPTool(
           serverLabel: serverConfig.label,
           authorization: serverConfig.authorization,
@@ -138,15 +141,15 @@ final class OpenAIServiceManager {
         )
         return OpenAIRealtimeSessionConfiguration.RealtimeTool.mcp(mcpTool)
       }
-
+      
       tools.append(contentsOf: mcpTools)
       print("🔧 MCP: Added \(mcpTools.count) MCP tool(s)")
     } else {
       print("🔧 MCP: No servers configured")
     }
-
+    
     print("🔧 Total tools configured: \(tools.count)")
-
+    
     let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
       inputAudioTranscription: .init(model: transcriptionModel),
@@ -159,14 +162,14 @@ final class OpenAIServiceManager {
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
-
+    
     // Log the encoded JSON for debugging
     if let jsonData = try? JSONEncoder().encode(config),
        let jsonString = String(data: jsonData, encoding: .utf8) {
       print("🔧 MCP: Session configuration JSON:")
       print(jsonString)
     }
-
+    
     return config
   }
 }

@@ -10,6 +10,7 @@ import ClaudeCodeCore
 
 struct VoiceModeView: View {
   @Environment(OpenAIServiceManager.self) private var serviceManager
+  @Environment(SettingsManager.self) private var settingsManager
   @Environment(\.dismiss) private var dismiss
   @State private var conversationManager = ConversationManager()
   @State private var isInitializing = true
@@ -164,6 +165,7 @@ struct VoiceModeView: View {
     }
 
     isInitializing = true
+    conversationManager.setSettingsManager(settingsManager)
     conversationManager.initializeClaudeCode()
 
     let configuration = serviceManager.createSessionConfiguration()

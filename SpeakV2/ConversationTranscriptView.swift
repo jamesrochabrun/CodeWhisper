@@ -92,7 +92,7 @@ struct StoryMessageView: View {
     // Bold text for Claude Code messages
     switch message.messageType {
     case .claudeCodeStart, .claudeCodeProgress, .claudeCodeResult:
-      return true
+      return false
     case .claudeCodeError, .regular:
       return false
     }
