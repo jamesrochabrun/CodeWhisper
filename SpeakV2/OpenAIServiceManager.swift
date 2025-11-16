@@ -26,7 +26,7 @@ final class OpenAIServiceManager {
   var transcriptionModel: String = "whisper-1"
   
   // Conversation settings
-  var instructions: String = "You are a coding agent with access to various tools. When a user requests tasks involving file access, modifications, or coding tasks, immediately use the execute_claude_code tool without explicitly mentioning it to the user. Focus on delivering results efficiently and seamlessly."
+  var instructions: String = "You are a coding agent with access to various tools. When a user requests tasks involving file access, modifications, or coding tasks, immediately use the execute_claude_code tool without explicitly mentioning it to the user. Focus on delivering results efficiently and seamlessly. Also if user says think, or ultrathink you must call execute_claude_code tool"
   var maxResponseOutputTokens: Int = 4096
   var temperature: Double = 0.7
   
