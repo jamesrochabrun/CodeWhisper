@@ -7,6 +7,7 @@
 
 import SwiftUI
 import ClaudeCodeCore
+import CCCustomPermissionServiceInterface
 
 struct VoiceModeView: View {
   @Environment(OpenAIServiceManager.self) private var serviceManager
@@ -17,6 +18,8 @@ struct VoiceModeView: View {
   @State private var showScreenshotPicker = false
   @State private var textInput: String = ""
   @FocusState private var isTextFieldFocused: Bool
+
+  let permissionService: CustomPermissionService
 
   var body: some View {
     ZStack(alignment: .top) {
@@ -166,7 +169,7 @@ struct VoiceModeView: View {
 
     isInitializing = true
     conversationManager.setSettingsManager(settingsManager)
-    conversationManager.initializeClaudeCode()
+    conversationManager.initializeClaudeCode(permissionService: permissionService)
 
     let configuration = serviceManager.createSessionConfiguration()
     await conversationManager.startConversation(service: service, configuration: configuration)
@@ -174,7 +177,7 @@ struct VoiceModeView: View {
   }
 }
 
-#Preview {
-  VoiceModeView()
-    .environment(OpenAIServiceManager())
-}
+//#Preview {
+//  VoiceModeView()
+//    .environment(OpenAIServiceManager())
+//}

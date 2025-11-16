@@ -6,12 +6,16 @@
 //
 
 import SwiftUI
+import ClaudeCodeCore
+import CCCustomPermissionServiceInterface
 
 struct ContentView: View {
   @Environment(SettingsManager.self) private var settingsManager
   @Environment(OpenAIServiceManager.self) private var serviceManager
   @State private var showingVoiceMode = false
   @State private var showingSettings = false
+
+  let permissionService: CustomPermissionService
   
   var body: some View {
     ZStack {
@@ -75,16 +79,16 @@ struct ContentView: View {
     }
 #if os(macOS)
     .sheet(isPresented: $showingVoiceMode) {
-      VoiceModeView()
+      VoiceModeView(permissionService: permissionService)
     }
 #else
     .fullScreenCover(isPresented: $showingVoiceMode) {
-      VoiceModeView()
+      VoiceModeView(permissionService: permissionService)
     }
 #endif
   }
 }
 
-#Preview {
-  ContentView()
-}
+//#Preview {
+//  ContentView()
+//}

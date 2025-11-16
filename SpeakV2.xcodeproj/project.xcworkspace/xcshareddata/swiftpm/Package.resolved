@@ -1,5 +1,5 @@
 {
-  "originHash" : "16c1347a5ff16b19b7b012c7d991a048667b4effd470cf0f772aa1845112c1a3",
+  "originHash" : "8d044803137823552f0e4f80ba0b318c8b0b7b4c6a6d60054704340468d5b75c",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "b2faff932b956df50668241d14f1b42f7bae12b4",
         "version" : "1.30.0"
+      }
+    },
+    {
+      "identity" : "claudecodeapprovalserver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jamesrochabrun/ClaudeCodeApprovalServer",
+      "state" : {
+        "revision" : "6584ea156411d7955fb9dff8a4488af15fce5a24",
+        "version" : "1.1.0"
       }
     },
     {

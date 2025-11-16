@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		7B64FD802EC7155100237379 /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7B64FD7F2EC7155100237379 /* SwiftOpenAI */; };
 		7B8F71382EC83D58003A51F3 /* ClaudeCodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */; };
+		7B8F71592EC99B22003A51F3 /* ApprovalServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7B8F71582EC99B22003A51F3 /* ApprovalServerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +59,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B8F71382EC83D58003A51F3 /* ClaudeCodeCore in Frameworks */,
+				7B8F71592EC99B22003A51F3 /* ApprovalServerKit in Frameworks */,
 				7B64FD802EC7155100237379 /* SwiftOpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -109,6 +111,7 @@
 				7B7BC8D22EC1BEA80031D849 /* Sources */,
 				7B7BC8D32EC1BEA80031D849 /* Frameworks */,
 				7B7BC8D42EC1BEA80031D849 /* Resources */,
+				7B8F715A2EC9A042003A51F3 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -121,6 +124,7 @@
 			packageProductDependencies = (
 				7B64FD7F2EC7155100237379 /* SwiftOpenAI */,
 				7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */,
+				7B8F71582EC99B22003A51F3 /* ApprovalServerKit */,
 			);
 			productName = SpeakV2;
 			productReference = 7B7BC8D62EC1BEA80031D849 /* SpeakV2.app */;
@@ -207,6 +211,7 @@
 			packageReferences = (
 				7B64FD7E2EC7155100237379 /* XCLocalSwiftPackageReference "../SwiftOpenAI" */,
 				7B8F71362EC83D58003A51F3 /* XCLocalSwiftPackageReference "../ClaudeCodeUI" */,
+				7B8F71572EC99B22003A51F3 /* XCRemoteSwiftPackageReference "ClaudeCodeApprovalServer" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B7BC8D72EC1BEA80031D849 /* Products */;
@@ -243,6 +248,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		7B8F715A2EC9A042003A51F3 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "bash \"${PROJECT_DIR}/bundle_server.sh\"\n\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7B7BC8D22EC1BEA80031D849 /* Sources */ = {
@@ -320,7 +346,7 @@
 				DEVELOPMENT_TEAM = CQ45U4X9K3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -382,7 +408,7 @@
 				DEVELOPMENT_TEAM = CQ45U4X9K3;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -646,6 +672,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		7B8F71572EC99B22003A51F3 /* XCRemoteSwiftPackageReference "ClaudeCodeApprovalServer" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jamesrochabrun/ClaudeCodeApprovalServer";
+			requirement = {
+				kind = exactVersion;
+				version = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		7B64FD7F2EC7155100237379 /* SwiftOpenAI */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -655,6 +692,11 @@
 		7B8F71372EC83D58003A51F3 /* ClaudeCodeCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ClaudeCodeCore;
+		};
+		7B8F71582EC99B22003A51F3 /* ApprovalServerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7B8F71572EC99B22003A51F3 /* XCRemoteSwiftPackageReference "ClaudeCodeApprovalServer" */;
+			productName = ApprovalServerKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
