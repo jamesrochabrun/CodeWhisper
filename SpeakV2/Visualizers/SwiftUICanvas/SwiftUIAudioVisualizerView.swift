@@ -11,6 +11,24 @@ struct SwiftUIAudioVisualizerView: View {
   let conversationManager: ConversationManager
   @State private var time: TimeInterval = 0
   
+  // MARK: - Color Configuration
+  
+  // Idle State Colors (Teal)
+  private let idleCenterColor = Color(red: 0.0, green: 0.7, blue: 0.7)
+  private let idleEdgeColor = Color(red: 0.0, green: 0.8, blue: 0.8)
+  
+  // User Speaking Colors (Bright Teal/Cyan)
+  private let userCenterColor = Color(red: 0.0, green: 0.8, blue: 0.75)
+  private let userEdgeColor = Color(red: 0.1, green: 0.9, blue: 0.85)
+  
+  // AI Thinking Colors (Deep Teal/Purple blend)
+  private let thinkingCenterColor = Color(red: 0.3, green: 0.6, blue: 0.7)
+  private let thinkingEdgeColor = Color(red: 0.4, green: 0.7, blue: 0.8)
+  
+  // AI Speaking Colors (Vibrant Teal)
+  private let aiCenterColor = Color(red: 0.0, green: 0.75, blue: 0.8)
+  private let aiEdgeColor = Color(red: 0.1, green: 0.85, blue: 0.9)
+  
   var body: some View {
     TimelineView(.animation) { timeline in
       Canvas { context, size in
@@ -126,23 +144,23 @@ struct SwiftUIAudioVisualizerView: View {
     switch conversationManager.conversationState {
     case .idle:
       activeLevel = max(conversationManager.audioLevel, conversationManager.aiAudioLevel) * 0.3
-      centerColor = Color(red: 0.4, green: 0.7, blue: 1.0) // Blue
-      edgeColor = Color(red: 0.5, green: 0.8, blue: 1.0)
+      centerColor = idleCenterColor
+      edgeColor = idleEdgeColor
       
     case .userSpeaking:
       activeLevel = conversationManager.audioLevel
-      centerColor = Color(red: 0.2, green: 0.9, blue: 0.6) // Cyan/green
-      edgeColor = Color(red: 0.3, green: 1.0, blue: 0.7)
+      centerColor = userCenterColor
+      edgeColor = userEdgeColor
       
     case .aiThinking:
       activeLevel = conversationManager.aiAudioLevel
-      centerColor = Color(red: 0.7, green: 0.4, blue: 0.9) // Purple
-      edgeColor = Color(red: 0.8, green: 0.5, blue: 1.0)
+      centerColor = thinkingCenterColor
+      edgeColor = thinkingEdgeColor
       
     case .aiSpeaking:
       activeLevel = conversationManager.aiAudioLevel
-      centerColor = Color(red: 0.9, green: 0.5, blue: 1.0) // Magenta
-      edgeColor = Color(red: 1.0, green: 0.6, blue: 1.0)
+      centerColor = aiCenterColor
+      edgeColor = aiEdgeColor
     }
     
     return (activeLevel, centerColor, edgeColor)
