@@ -49,10 +49,12 @@ struct SettingsView: View {
             }
           }
           .padding(.vertical, 4)
+
+          Toggle("Bypass Permissions", isOn: $settingsManager.bypassPermissions)
         } header: {
           Text("Claude Code")
         } footer: {
-          Text("Select the directory where Claude Code will execute commands and access files.")
+          Text("Select the directory where Claude Code will execute commands and access files. When bypass permissions is enabled, Claude Code will execute all operations without asking for confirmation. Use with caution.")
             .font(.caption)
         }
 

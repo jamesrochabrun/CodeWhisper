@@ -29,6 +29,13 @@ final class SettingsManager {
     }
   }
 
+  var bypassPermissions: Bool {
+    didSet {
+      UserDefaults.standard.set(bypassPermissions, forKey: "claude_code_bypass_permissions")
+      print("SettingsManager: Bypass permissions updated to: \(bypassPermissions)")
+    }
+  }
+
   var hasValidAPIKey: Bool {
     !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
@@ -53,7 +60,11 @@ final class SettingsManager {
     let defaultDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path ?? ""
     self.workingDirectory = UserDefaults.standard.string(forKey: "claude_code_working_directory") ?? defaultDir
 
+    // Load bypass permissions setting (default: false)
+    self.bypassPermissions = UserDefaults.standard.bool(forKey: "claude_code_bypass_permissions")
+
     print("SettingsManager init - Working directory: \(workingDirectory)")
+    print("SettingsManager init - Bypass permissions: \(bypassPermissions)")
   }
 
   func clearAPIKey() {

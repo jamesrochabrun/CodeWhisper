@@ -566,12 +566,17 @@ final class ConversationManager {
       )
       print("[MCPPERMISSION] ✅ ChatViewModel created")
 
-      // 5. Set working directory in view model (following ClaudeCodeContainer pattern)
+      // 5. Set permission mode from settings
+      let permissionMode: ClaudeCodeSDK.PermissionMode = (settingsManager?.bypassPermissions == true) ? .bypassPermissions : .default
+      chatViewModel.permissionMode = permissionMode
+      print("[MCPPERMISSION] 🔐 Permission mode set to: \(permissionMode.rawValue)")
+
+      // 6. Set working directory in view model (following ClaudeCodeContainer pattern)
       let workingDir = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
       chatViewModel.projectPath = config.workingDirectory ?? workingDir
       settingsStorage.setProjectPath(config.workingDirectory ?? workingDir)
 
-      // 6. Create manager with configured view model
+      // 7. Create manager with configured view model
       let manager = ClaudeCodeManager()
       manager.initialize(chatViewModel: chatViewModel)
       self.claudeCodeManager = manager
