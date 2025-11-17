@@ -1,6 +1,6 @@
 //
 //  MCPSettingsView.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  MCP Server configuration UI
 //

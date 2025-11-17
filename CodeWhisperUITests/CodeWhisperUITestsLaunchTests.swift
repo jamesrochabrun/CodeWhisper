@@ -1,13 +1,13 @@
 //
-//  SpeakV2UITestsLaunchTests.swift
-//  SpeakV2UITests
+//  CodeWhisperUITestsLaunchTests.swift
+//  CodeWhisperUITests
 //
 //  Created by James Rochabrun on 11/9/25.
 //
 
 import XCTest
 
-final class SpeakV2UITestsLaunchTests: XCTestCase {
+final class CodeWhisperUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

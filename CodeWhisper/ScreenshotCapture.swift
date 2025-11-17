@@ -1,6 +1,6 @@
 //
 //  ScreenshotCapture.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Screenshot capture utility for macOS
 //
@@ -256,7 +256,7 @@ struct ScreenshotPickerView: View {
 
       availableWindows = content.windows.filter { window in
         // Exclude our own app
-        guard window.owningApplication?.applicationName != "SpeakV2" else { return false }
+        guard window.owningApplication?.applicationName != "CodeWhisper" else { return false }
 
         // Require a non-empty title
         guard let title = window.title, !title.isEmpty else { return false }

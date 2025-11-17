@@ -1,6 +1,6 @@
 //
-//  SpeakV2App.swift
-//  SpeakV2
+//  CodeWhisperApp.swift
+//  CodeWhisper
 //
 //  Created by James Rochabrun on 11/9/25.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct SpeakV2App: App {
+struct CodeWhisperApp: App {
   @State private var settingsManager = SettingsManager()
   @State private var mcpServerManager = MCPServerManager()
   @State private var serviceManager = OpenAIServiceManager()

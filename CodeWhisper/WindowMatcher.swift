@@ -1,6 +1,6 @@
 //
 //  WindowMatcher.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Smart window matching utility for natural language queries
 //

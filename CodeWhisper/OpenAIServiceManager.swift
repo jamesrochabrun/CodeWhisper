@@ -1,6 +1,6 @@
 //
 //  OpenAIServiceManager.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Created by James Rochabrun on 11/13/25.
 //

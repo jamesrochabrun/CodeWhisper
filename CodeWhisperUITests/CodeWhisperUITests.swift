@@ -1,13 +1,13 @@
 //
-//  SpeakV2UITests.swift
-//  SpeakV2UITests
+//  CodeWhisperUITests.swift
+//  CodeWhisperUITests
 //
 //  Created by James Rochabrun on 11/9/25.
 //
 
 import XCTest
 
-final class SpeakV2UITests: XCTestCase {
+final class CodeWhisperUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

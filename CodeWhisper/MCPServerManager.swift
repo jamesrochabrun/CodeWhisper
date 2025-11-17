@@ -1,6 +1,6 @@
 //
 //  MCPServerManager.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  MCP Server configuration management
 //

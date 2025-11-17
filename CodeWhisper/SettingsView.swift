@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Created by James Rochabrun on 11/9/25.
 //

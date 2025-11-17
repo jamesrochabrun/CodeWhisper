@@ -1,6 +1,6 @@
 //
 //  ConversationManager.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Created by James Rochabrun on 11/9/25.
 //
@@ -542,9 +542,9 @@ final class ConversationManager {
       
       // 1. Create configuration with working directory and debug logging
       var config = ClaudeCodeConfiguration.withNvmSupport()
-      config.workingDirectory = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
-      config.enableDebugLogging = true
       let homeDir = NSHomeDirectory()
+      config.workingDirectory = settingsManager?.workingDirectory ?? homeDir
+      config.enableDebugLogging = true
       // PRIORITY 1: Check for local Claude installation (usually the newest version)
       // This is typically installed via the Claude installer, not npm
       let localClaudePath = "\(homeDir)/.claude/local"
@@ -599,7 +599,7 @@ final class ConversationManager {
       print("[MCPPERMISSION] 🔐 Permission mode set to: \(permissionMode.rawValue)")
       
       // 6. Set working directory in view model (following ClaudeCodeContainer pattern)
-      let workingDir = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
+      let workingDir = settingsManager?.workingDirectory ?? homeDir
       chatViewModel.projectPath = config.workingDirectory ?? workingDir
       settingsStorage.setProjectPath(config.workingDirectory ?? workingDir)
       

@@ -1,6 +1,6 @@
 //
 //  ClaudeCodeManager.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Manages Claude Code SDK integration for voice-triggered coding tasks
 //  Uses ChatViewModel from ClaudeCodeUI package

@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  SpeakV2
+//  CodeWhisper
 //
 //  Created by James Rochabrun on 11/9/25.
 //
@@ -20,7 +20,7 @@ struct ContentView: View {
       VStack(spacing: 40) {
         Spacer()
         
-        Text("SpeakV2")
+        Text("CodeWhisper")
           .font(.system(size: 60, weight: .bold, design: .rounded))
           .foregroundStyle(.white)
         
