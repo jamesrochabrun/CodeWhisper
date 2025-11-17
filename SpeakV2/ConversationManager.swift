@@ -247,6 +247,7 @@ final class ConversationManager {
       print("Realtime API Error: \(error ?? "Unknown error")")
       await MainActor.run {
         self.errorMessage = error ?? "Unknown error"
+        self.isConnected = false
       }
       session.disconnect()
       
@@ -352,6 +353,49 @@ final class ConversationManager {
       print("❌ MCP Error: \(error ?? "Unknown error")")
       await MainActor.run {
         self.errorMessage = "MCP Error: \(error ?? "Unknown error")"
+      }
+
+    case .responseDone(let status, let statusDetails):
+      print("Response done with status: \(status)")
+
+      // Check for errors in the response
+      if let statusDetails = statusDetails,
+         let statusDetailsDict = statusDetails["status_details"] as? [String: Any],
+         let error = statusDetailsDict["error"] as? [String: Any],
+         let code = error["code"] as? String,
+         let message = error["message"] as? String {
+
+        print("❌ Response failed: [\(code)] \(message)")
+
+        // Set error message for UI display
+        await MainActor.run {
+          self.errorMessage = "\(code): \(message)"
+
+          // Add error to conversation transcript
+          self.messages.append(ConversationMessage(
+            text: "Error: \(message)",
+            isUser: false,
+            timestamp: Date(),
+            messageType: .regular
+          ))
+        }
+
+        // Disconnect on critical errors
+        if code == "insufficient_quota" || code == "invalid_api_key" {
+          print("⚠️ Critical error detected, disconnecting session")
+          await MainActor.run {
+            self.isConnected = false
+          }
+          session.disconnect()
+        }
+      } else if status == "completed" {
+        print("✅ Response completed successfully")
+      } else if status == "failed" {
+        // Failed status but no detailed error information
+        print("❌ Response failed without detailed error information")
+        await MainActor.run {
+          self.errorMessage = "Response failed: \(status)"
+        }
       }
     }
   }
@@ -774,9 +818,13 @@ final class ConversationManager {
     return task
   }
   
+  func clearError() {
+    errorMessage = nil
+  }
+
   func stopConversation() {
     print("ConversationManager.stopConversation - Stopping...")
-    
+
     // Cancel tasks
     sessionTask?.cancel()
     micTask?.cancel()
