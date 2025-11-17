@@ -23,7 +23,7 @@ struct VoiceModeView: View {
       Color.black.ignoresSafeArea()
       VStack(spacing: 30) {
         toolbar
-        // Error banner
+        // Error banner (for critical errors)
         if let errorMessage = conversationManager.errorMessage {
           errorBanner(errorMessage)
         }
@@ -116,6 +116,10 @@ struct VoiceModeView: View {
   
   private var textInputSection: some View {
     VStack(spacing: 10) {
+      // Warning banner (for non-critical warnings like screenshot issues)
+      if let warningMessage = conversationManager.warningMessage {
+        warningBanner(warningMessage)
+      }
       HStack(spacing: 12) {
         textField
         sendButton
@@ -210,6 +214,35 @@ struct VoiceModeView: View {
         .fill(Color.red.opacity(0.85))
         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
     )
+    .padding(.horizontal)
+    .transition(.move(edge: .top).combined(with: .opacity))
+  }
+  
+  @ViewBuilder
+  private func warningBanner(_ message: String) -> some View {
+    HStack(spacing: 8) {
+      Image(systemName: "exclamationmark.circle.fill")
+        .font(.system(size: 14))
+        .foregroundStyle(.orange)
+      
+      Text(message)
+        .font(.system(size: 10))
+        .foregroundStyle(.orange.opacity(0.9))
+        .lineLimit(2)
+      
+      Spacer()
+      
+      Button {
+        conversationManager.clearWarning()
+      } label: {
+        Image(systemName: "xmark.circle.fill")
+          .font(.system(size: 16))
+          .foregroundStyle(.orange.opacity(0.6))
+      }
+      .buttonStyle(.plain)
+      .help("Dismiss warning")
+    }
+    .padding(12)
     .padding(.horizontal)
     .transition(.move(edge: .top).combined(with: .opacity))
   }

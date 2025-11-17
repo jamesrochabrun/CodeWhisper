@@ -12,6 +12,7 @@ import AVFoundation
 import ClaudeCodeCore
 import ClaudeCodeSDK
 import CCCustomPermissionService
+import ScreenCaptureKit
 
 // Actor to safely share state between MainActor and RealtimeActor
 actor ReadyState {
@@ -47,7 +48,7 @@ struct ConversationMessage: Identifiable {
   let timestamp: Date
   let imageBase64URL: String? // Optional base64 data URL for images
   let messageType: ConversationMessageType // Type of message
-
+  
   init(
     text: String,
     isUser: Bool,
@@ -70,6 +71,7 @@ final class ConversationManager {
   private(set) var isConnected = false
   private(set) var isListening = false
   private(set) var errorMessage: String?
+  private(set) var warningMessage: String?
   
   // Microphone mute state
   private(set) var isMicrophoneMuted = false
@@ -89,13 +91,13 @@ final class ConversationManager {
   
   // Screenshot capture
   private let screenshotCapture = ScreenshotCapture()
-
+  
   // Claude Code manager
   private var claudeCodeManager: ClaudeCodeManager?
-
+  
   // Settings manager
   private var settingsManager: SettingsManager?
-
+  
   // Smoothing for visual transitions
   private var smoothedAudioLevel: Float = 0.0
   private var smoothedAiAudioLevel: Float = 0.0
@@ -354,23 +356,23 @@ final class ConversationManager {
       await MainActor.run {
         self.errorMessage = "MCP Error: \(error ?? "Unknown error")"
       }
-
+      
     case .responseDone(let status, let statusDetails):
       print("Response done with status: \(status)")
-
+      
       // Check for errors in the response
       if let statusDetails = statusDetails,
          let statusDetailsDict = statusDetails["status_details"] as? [String: Any],
          let error = statusDetailsDict["error"] as? [String: Any],
          let code = error["code"] as? String,
          let message = error["message"] as? String {
-
+        
         print("❌ Response failed: [\(code)] \(message)")
-
+        
         // Set error message for UI display
         await MainActor.run {
           self.errorMessage = "\(code): \(message)"
-
+          
           // Add error to conversation transcript
           self.messages.append(ConversationMessage(
             text: "Error: \(message)",
@@ -379,7 +381,7 @@ final class ConversationManager {
             messageType: .regular
           ))
         }
-
+        
         // Disconnect on critical errors
         if code == "insufficient_quota" || code == "invalid_api_key" {
           print("⚠️ Critical error detected, disconnecting session")
@@ -401,7 +403,7 @@ final class ConversationManager {
   }
   
   /// Send an image with optional text to the conversation
-  func sendImage(_ imageBase64URL: String, text: String = "What do you see in this image?") async {
+  func sendImage(_ imageBase64URL: String, text: String = "") async {
     guard let session = realtimeSession else {
       errorMessage = "No active session"
       return
@@ -480,48 +482,48 @@ final class ConversationManager {
       ))
       
       print("Text message sent: \(text)")
-
+      
     } catch {
       errorMessage = "Failed to send text: \(error.localizedDescription)"
       print("Error sending text: \(error)")
     }
   }
-
+  
   /// Send function call output back to OpenAI Realtime API
   private func sendFunctionCallOutput(callId: String, output: String, session: OpenAIRealtimeSession) async {
     print("📤 Sending function call output for callId: \(callId)")
-
+    
     do {
       // Create function call output using the custom struct
       let functionOutput = FunctionToolCallOutput(callId: callId, output: output)
       let itemCreateMessage = RealtimeConversationItemCreateWithFunctionOutput(item: functionOutput)
-
+      
       // Send to session on RealtimeActor
       try await Task { @RealtimeActor in
         // Send the function output as a message
         await session.sendMessage(itemCreateMessage)
-
+        
         // Trigger AI response so it speaks the result
         await session.sendMessage(OpenAIRealtimeResponseCreate())
       }.value
-
+      
       print("✅ Function call output sent successfully")
-
+      
     } catch {
       print("❌ Error sending function call output: \(error)")
     }
   }
-
+  
   /// Custom struct to send function call output via conversation.item.create
   private struct RealtimeConversationItemCreateWithFunctionOutput: Encodable {
     let type = "conversation.item.create"
     let item: FunctionToolCallOutput
-
+    
     init(item: FunctionToolCallOutput) {
       self.item = item
     }
   }
-
+  
   /// Toggle microphone mute state
   func toggleMicrophoneMute() {
     isMicrophoneMuted.toggle()
@@ -532,12 +534,12 @@ final class ConversationManager {
   func setSettingsManager(_ manager: SettingsManager) {
     self.settingsManager = manager
   }
-
+  
   /// Initialize Claude Code manager
   func initializeClaudeCode() {
     do {
       // Following ClaudeCodeContainer pattern for proper initialization
-
+      
       // 1. Create configuration with working directory and debug logging
       var config = ClaudeCodeConfiguration.withNvmSupport()
       config.workingDirectory = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
@@ -565,19 +567,19 @@ final class ConversationManager {
       
       
       
-
+      
       print("🔧 ConversationManager: Initializing Claude Code with working directory: \(config.workingDirectory ?? "nil")")
       print("🔧 ConversationManager: Debug logging enabled: \(config.enableDebugLogging)")
-
+      
       // 2. Create Claude Code client with configuration
       let claudeClient = try ClaudeCodeClient(configuration: config)
-
+      
       // 3. Create dependencies (following ClaudeCodeContainer pattern)
       let sessionStorage = NoOpSessionStorage()
       let settingsStorage = SettingsStorageManager()
       let globalPreferences = GlobalPreferencesStorage()
       let permissionService = DefaultCustomPermissionService()
-
+      
       // 4. Create ChatViewModel with all dependencies
       let chatViewModel = ChatViewModel(
         claudeClient: claudeClient,
@@ -590,79 +592,165 @@ final class ConversationManager {
         onSessionChange: nil,
         onUserMessageSent: nil
       )
-
+      
       // 5. Set permission mode from settings
       let permissionMode: ClaudeCodeSDK.PermissionMode = (settingsManager?.bypassPermissions == true) ? .bypassPermissions : .default
       chatViewModel.permissionMode = permissionMode
       print("[MCPPERMISSION] 🔐 Permission mode set to: \(permissionMode.rawValue)")
-
+      
       // 6. Set working directory in view model (following ClaudeCodeContainer pattern)
       let workingDir = settingsManager?.workingDirectory ?? "/Users/jamesrochabrun/Desktop/git/SpeakV2"
       chatViewModel.projectPath = config.workingDirectory ?? workingDir
       settingsStorage.setProjectPath(config.workingDirectory ?? workingDir)
-
+      
       // 7. Create manager with configured view model
       let manager = ClaudeCodeManager()
       manager.initialize(chatViewModel: chatViewModel)
       self.claudeCodeManager = manager
-
+      
       print("✅ ConversationManager: Claude Code initialized successfully")
-
+      
     } catch {
       print("❌ ConversationManager: Failed to initialize Claude Code: \(error)")
       self.claudeCodeManager = nil
     }
   }
-
+  
   /// Handle function/tool calls from the AI
   private func handleFunctionCall(name: String, arguments: String, callId: String, session: OpenAIRealtimeSession) async {
     print("📸 Handling function call: \(name)")
-
+    
     switch name {
     case "take_screenshot":
-      await handleScreenshotTool(callId: callId)
-
+      await handleScreenshotTool(arguments: arguments, callId: callId)
+      
     case "execute_claude_code":
       await handleClaudeCodeTool(arguments: arguments, callId: callId, session: session)
-
+      
     default:
       print("⚠️ Unknown function call: \(name)")
     }
   }
   
   /// Handle screenshot tool execution
-  private func handleScreenshotTool(callId: String) async {
-    print("📸 Executing take_screenshot tool...")
-
-    // Capture screenshot
-    await screenshotCapture.captureScreenshot()
-
-    // Check if capture was successful
-    guard let capturedImage = screenshotCapture.capturedImage else {
-      print("❌ Screenshot capture failed: \(screenshotCapture.errorMessage ?? "Unknown error")")
-      // TODO: Send error result back to OpenAI
+  private func handleScreenshotTool(arguments: String, callId: String) async {
+    print("📸 Executing take_screenshot tool with arguments: \(arguments)")
+    
+    // Parse arguments
+    guard let args = parseScreenshotArguments(arguments) else {
+      print("❌ Failed to parse screenshot arguments")
       return
     }
-
+    
+    // Determine capture type
+    let captureType = args["capture_type"] as? String ?? "full_screen"
+    
+    if captureType == "window" {
+      // Smart window selection
+      let appName = args["app_name"] as? String
+      let windowTitle = args["window_title"] as? String
+      await captureSpecificWindow(appName: appName, windowTitle: windowTitle)
+    } else {
+      // Full screen capture (existing logic)
+      await screenshotCapture.captureScreenshot()
+    }
+    
+    // Check if capture was successful
+    guard let capturedImage = screenshotCapture.capturedImage else {
+      let error = screenshotCapture.errorMessage ?? "Screenshot capture failed"
+      print("❌ \(error)")
+      await MainActor.run {
+        self.warningMessage = error
+      }
+      return
+    }
+    
     // Convert to base64
     guard let base64URL = screenshotCapture.convertToBase64DataURL(capturedImage) else {
       print("❌ Failed to convert screenshot to base64")
+      await MainActor.run {
+        self.warningMessage = "Failed to process screenshot"
+      }
       return
     }
-
+    
     print("✅ Screenshot captured successfully")
-
+    
     // Send the screenshot as an image message
-    await sendImage(base64URL, text: "I've captured a screenshot as requested. Here's what's on the screen:")
-
+    let description = if captureType == "window", let app = args["app_name"] as? String {
+      "I've captured a screenshot of \(app) as requested. Here's what's in the window:"
+    } else {
+      "I've captured a screenshot as requested. Here's what's on the screen:"
+    }
+    await sendImage(base64URL, text: description)
+    
     // Clear the captured image
     screenshotCapture.clearImage()
   }
-
+  
+  /// Parse screenshot tool arguments
+  private func parseScreenshotArguments(_ arguments: String) -> [String: Any]? {
+    guard let data = arguments.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      return nil
+    }
+    return json
+  }
+  
+  /// Capture a specific window using smart matching
+  private func captureSpecificWindow(appName: String?, windowTitle: String?) async {
+    guard let appName = appName else {
+      screenshotCapture.errorMessage = "app_name is required for window capture"
+      return
+    }
+    
+    do {
+      // Get available windows
+      let content = try await SCShareableContent.current
+      
+      // Apply same filtering as ScreenshotPickerView
+      let availableWindows = content.windows.filter { window in
+        guard window.owningApplication?.applicationName != "SpeakV2" else { return false }
+        guard let title = window.title, !title.isEmpty else { return false }
+        let minSize: CGFloat = 200
+        guard window.frame.width >= minSize && window.frame.height >= minSize else { return false }
+        guard window.isOnScreen else { return false }
+        
+        let systemApps = ["Window Server", "Dock", "SystemUIServer", "ControlCenter",
+                          "Notification Center", "Spotlight", "Siri"]
+        if let app = window.owningApplication?.applicationName, systemApps.contains(app) {
+          return false
+        }
+        return true
+      }
+      
+      // Use WindowMatcher to find best match
+      guard let matchedWindow = WindowMatcher.findWindow(
+        from: availableWindows,
+        appName: appName,
+        windowTitle: windowTitle
+      ) else {
+        let titleInfo = windowTitle.map { " with title '\($0)'" } ?? ""
+        screenshotCapture.errorMessage = "No matching window found for app '\(appName)'\(titleInfo)"
+        print("❌ \(screenshotCapture.errorMessage ?? "")")
+        return
+      }
+      
+      print("✅ Found matching window: \(matchedWindow.owningApplication?.applicationName ?? "") - \(matchedWindow.title ?? "")")
+      
+      // Capture the matched window
+      await screenshotCapture.captureWindow(matchedWindow)
+      
+    } catch {
+      screenshotCapture.errorMessage = "Failed to enumerate windows: \(error.localizedDescription)"
+      print("❌ \(screenshotCapture.errorMessage ?? "")")
+    }
+  }
+  
   /// Handle Claude Code tool execution
   private func handleClaudeCodeTool(arguments: String, callId: String, session: OpenAIRealtimeSession) async {
     print("🤖 Executing execute_claude_code tool...")
-
+    
     // Parse arguments to extract task
     guard let task = parseClaudeCodeArguments(arguments) else {
       print("❌ Failed to parse Claude Code arguments")
@@ -673,14 +761,14 @@ final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeError
       ))
-
+      
       // Send error result back to OpenAI
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
       return
     }
-
+    
     print("🤖 Claude Code task: \(task)")
-
+    
     // Check if Claude Code is initialized
     guard let claudeCodeManager = claudeCodeManager else {
       print("❌ Claude Code not initialized")
@@ -691,19 +779,19 @@ final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeError
       ))
-
+      
       // Send error result back to OpenAI
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
       return
     }
-
+    
     // Pause voice mode (mute microphone)
     let wasMuted = isMicrophoneMuted
     if !wasMuted {
       isMicrophoneMuted = true
       print("Paused voice mode for Code execution")
     }
-
+    
     // Show Claude Code is processing
     messages.append(ConversationMessage(
       text: "\(task)",
@@ -711,20 +799,20 @@ final class ConversationManager {
       timestamp: Date(),
       messageType: .claudeCodeStart
     ))
-
+    
     do {
       // Start observing progress updates in parallel with execution
       let observationTask = Task {
         var lastProgressCount = 0
-
+        
         while !Task.isCancelled {
           let currentProgressCount = claudeCodeManager.progressUpdates.count
-
+          
           // Add new progress updates to conversation as they arrive
           if currentProgressCount > lastProgressCount {
             let newProgress = claudeCodeManager.progressUpdates[lastProgressCount...]
             print("📨 ConversationManager: Adding \(newProgress.count) new progress update(s)")
-
+            
             await MainActor.run {
               for progress in newProgress {
                 self.messages.append(ConversationMessage(
@@ -735,30 +823,30 @@ final class ConversationManager {
                 ))
               }
             }
-
+            
             lastProgressCount = currentProgressCount
           }
-
+          
           // Check if execution is complete
           if claudeCodeManager.state == .completed || claudeCodeManager.state == .error("") {
             break
           }
-
+          
           // Poll every 50ms for responsive updates
           try? await Task.sleep(for: .milliseconds(50))
         }
       }
-
+      
       // Execute task (this blocks until complete)
       let result = try await claudeCodeManager.executeTask(task)
-
+      
       // Cancel observation task
       observationTask.cancel()
-
+      
       // Process any remaining progress updates
       let processedCount = messages.filter({ $0.messageType == .claudeCodeProgress }).count
       let totalProgressCount = claudeCodeManager.progressUpdates.count
-
+      
       if processedCount < totalProgressCount {
         print("📊 Processing \(totalProgressCount - processedCount) remaining progress updates")
         let remainingProgress = claudeCodeManager.progressUpdates[processedCount...]
@@ -773,7 +861,7 @@ final class ConversationManager {
       } else {
         print("📊 All \(totalProgressCount) progress updates already processed")
       }
-
+      
       // Add final result
       messages.append(ConversationMessage(
         text: result,
@@ -781,12 +869,12 @@ final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeResult
       ))
-
+      
       print("✅ Claude Code task completed successfully")
-
+      
       // Send result back to OpenAI so it can speak it
       await sendFunctionCallOutput(callId: callId, output: result, session: session)
-
+      
     } catch {
       print("❌ Claude Code task failed: \(error)")
       let errorMessage = "Error Claude Code: \(error.localizedDescription)"
@@ -796,18 +884,18 @@ final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeError
       ))
-
+      
       // Send error result back to OpenAI
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
     }
-
+    
     // Resume voice mode (unmute if it wasn't muted before)
     if !wasMuted {
       isMicrophoneMuted = false
       print("🤖 Resumed voice mode after Claude Code execution")
     }
   }
-
+  
   /// Parse Claude Code arguments from JSON string
   private func parseClaudeCodeArguments(_ arguments: String) -> String? {
     guard let data = arguments.data(using: .utf8),
@@ -821,10 +909,14 @@ final class ConversationManager {
   func clearError() {
     errorMessage = nil
   }
-
+  
+  func clearWarning() {
+    warningMessage = nil
+  }
+  
   func stopConversation() {
     print("ConversationManager.stopConversation - Stopping...")
-
+    
     // Cancel tasks
     sessionTask?.cancel()
     micTask?.cancel()

@@ -83,17 +83,25 @@ final class OpenAIServiceManager {
     // Add screenshot function tool
     let screenshotTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
       name: "take_screenshot",
-      description: "Captures a screenshot of the user's screen. Use this when the user asks to take a screenshot, capture the screen, or show you what's on their screen.",
+      description: "Captures a screenshot of the user's screen. Use this when the user asks to take a screenshot, capture the screen, or show you what's on their screen. Supports full screen or specific window capture by app name or window title.",
       parameters: [
         "type": "object",
         "properties": [
           "capture_type": [
             "type": "string",
-            "enum": ["full_screen"],
-            "description": "The type of screenshot to capture. Currently only supports full_screen."
+            "enum": ["full_screen", "window"],
+            "description": "Type of screenshot: 'full_screen' for entire screen, 'window' for specific window"
+          ],
+          "app_name": [
+            "type": "string",
+            "description": "Name of the application to capture (e.g., 'Terminal', 'Safari', 'VSCode'). Use when capture_type is 'window'. Supports natural language like 'browser', 'terminal', 'code editor'."
+          ],
+          "window_title": [
+            "type": "string",
+            "description": "Optional window title filter for more specific matching. Use with app_name for precise window selection."
           ]
         ],
-        "required": []
+        "required": ["capture_type"]
       ]
     )
     tools.append(.function(screenshotTool))
