@@ -195,7 +195,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 7B7BC8D12EC1BEA80031D849 /* Build configuration list for PBXProject "SpeakV2" */;
+			buildConfigurationList = 7B7BC8D12EC1BEA80031D849 /* Build configuration list for PBXProject "CodeWhisper" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -597,7 +597,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		7B7BC8D12EC1BEA80031D849 /* Build configuration list for PBXProject "SpeakV2" */ = {
+		7B7BC8D12EC1BEA80031D849 /* Build configuration list for PBXProject "CodeWhisper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7B7BC8F52EC1BEAA0031D849 /* Debug */,
