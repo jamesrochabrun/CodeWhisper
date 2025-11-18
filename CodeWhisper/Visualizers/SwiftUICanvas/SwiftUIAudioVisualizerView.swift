@@ -10,23 +10,22 @@ import SwiftUI
 struct SwiftUIAudioVisualizerView: View {
   let conversationManager: ConversationManager
   @State private var time: TimeInterval = 0
-  
-  // Idle State Colors (Blue-Gray/Slate)
-  private let idleCenterColor = Color(red: 0.439, green: 0.627, blue: 0.686)
-  private let idleEdgeColor = Color(red: 0.510, green: 0.680, blue: 0.730)
 
-  // User Speaking Colors (Bright Blue-Gray)
-  private let userCenterColor = Color(red: 0.480, green: 0.660, blue: 0.710)
-  private let userEdgeColor = Color(red: 0.580, green: 0.730, blue: 0.780)
+  // Idle State Colors (Medium Coral)
+  private let idleCenterColor = Color(red: 0.800, green: 0.471, blue: 0.361)
+  private let idleEdgeColor = Color(red: 0.850, green: 0.550, blue: 0.450)
 
-  // AI Thinking Colors (Deep Blue-Gray)
-  private let thinkingCenterColor = Color(red: 0.390, green: 0.580, blue: 0.640)
-  private let thinkingEdgeColor = Color(red: 0.450, green: 0.630, blue: 0.690)
+  // User Speaking Colors (Bright Vibrant Coral) - Very saturated and bright
+  private let userCenterColor = Color(red: 0.950, green: 0.550, blue: 0.400)
+  private let userEdgeColor = Color(red: 1.000, green: 0.650, blue: 0.500)
 
-  // AI Speaking Colors (Vibrant Blue-Gray)
-  private let aiCenterColor = Color(red: 0.439, green: 0.627, blue: 0.686)
-  private let aiEdgeColor = Color(red: 0.540, green: 0.700, blue: 0.750)
-  
+  // AI Thinking Colors (Medium-Dark Coral) - Muted but not too dark
+  private let thinkingCenterColor = Color(red: 0.600, green: 0.350, blue: 0.280)
+  private let thinkingEdgeColor = Color(red: 0.700, green: 0.450, blue: 0.350)
+
+  // AI Speaking Colors (Light Bright Coral) - Airy and luminous
+  private let aiCenterColor = Color(red: 0.900, green: 0.600, blue: 0.500)
+  private let aiEdgeColor = Color(red: 0.950, green: 0.700, blue: 0.600)
   
   var body: some View {
     TimelineView(.animation) { timeline in

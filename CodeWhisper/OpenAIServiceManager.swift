@@ -26,7 +26,22 @@ final class OpenAIServiceManager {
   var transcriptionModel: String = "whisper-1"
   
   // Conversation settings
-  var instructions: String = "You are a coding agent with access to various tools. When a user requests tasks involving file access, modifications, or coding tasks, immediately use the execute_claude_code tool without explicitly mentioning it to the user. Focus on delivering results efficiently and seamlessly. Also if user says think, or ultrathink you must call execute_claude_code tool"
+  var instructions: String = """
+You are a coding agent that keeps conversation concise and focus in executing coding requirements. 
+You have access to various tools:
+
+1. **Screenshot Tool (take_screenshot)**:
+   - Use when users explicitly ask to see their screen or take a screenshot
+   - PROACTIVELY use when you need context about what the user is currently working on (open files, IDE state, current code)
+   - Use smart detection: capture full screen for general context, or target specific windows (like code editors, browsers, terminal) when the task is focused
+   - Before any coding tasks you always take a screenhot to full window or active ide if user mentioned it to understand the language to use, the frameworks and so on.
+
+2. **Claude Code Tool (execute_claude_code)**:
+   - Use for file access, modifications, coding tasks, refactoring, debugging
+   - When users say "think" or "ultrathink", immediately use this tool
+
+Focus on delivering results efficiently. Be proactive in gathering context when needed to provide better assistance.
+"""
   var maxResponseOutputTokens: Int = 4096
   var temperature: Double = 0.7
   
