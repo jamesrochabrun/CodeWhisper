@@ -8,169 +8,109 @@
 import SwiftUI
 
 struct SwiftUIAudioVisualizerView: View {
+  
   let conversationManager: ConversationManager
-  @State private var time: TimeInterval = 0
-
-  // Idle State Colors (Medium Coral)
-  private let idleCenterColor = Color(red: 0.800, green: 0.471, blue: 0.361)
-  private let idleEdgeColor = Color(red: 0.850, green: 0.550, blue: 0.450)
-
-  // User Speaking Colors (Bright Vibrant Coral) - Very saturated and bright
-  private let userCenterColor = Color(red: 0.950, green: 0.550, blue: 0.400)
-  private let userEdgeColor = Color(red: 1.000, green: 0.650, blue: 0.500)
-
-  // AI Thinking Colors (Medium-Dark Coral) - Muted but not too dark
-  private let thinkingCenterColor = Color(red: 0.600, green: 0.350, blue: 0.280)
-  private let thinkingEdgeColor = Color(red: 0.700, green: 0.450, blue: 0.350)
-
-  // AI Speaking Colors (Light Bright Coral) - Airy and luminous
-  private let aiCenterColor = Color(red: 0.900, green: 0.600, blue: 0.500)
-  private let aiEdgeColor = Color(red: 0.950, green: 0.700, blue: 0.600)
+  
+  // Modern color palettes for different states
+  private var currentPalette: ColorPalette {
+    switch conversationManager.conversationState {
+    case .idle:
+      return .idle
+    case .userSpeaking:
+      return .userSpeaking
+    case .aiThinking:
+      return .aiThinking
+    case .aiSpeaking:
+      return .aiSpeaking
+    }
+  }
   
   var body: some View {
     TimelineView(.animation) { timeline in
       Canvas { context, size in
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let baseRadius: CGFloat = 80
-        
-        // Update time
         let currentTime = timeline.date.timeIntervalSinceReferenceDate
+        let audioLevel = getAudioLevel()
+        let maxRadius = min(size.width, size.height) / 2 * 0.85
         
-        // Calculate active level and colors based on state
-        let (activeLevel, centerColor, edgeColor) = getStateProperties()
-        
-        // Idle breathing pulse
-        let idlePulse = conversationManager.conversationState == .idle ?
-        sin(currentTime * 1.5) * 15 : 0
-        
-        // Main radius with audio reactivity
-        let mainRadius = baseRadius +
-        CGFloat(activeLevel) * 100 +
-        CGFloat(conversationManager.midFrequency) * 50 +
-        idlePulse
-        
-        // Draw outer glow (low frequency)
-        let lowFreqGlow = mainRadius + 30.0 + CGFloat(conversationManager.lowFrequency) * 40.0
-        drawGlowCircle(
+        // Ambient background
+        drawAmbientGlow(
           context: &context,
           center: center,
-          radius: lowFreqGlow,
-          color: centerColor,
-          opacity: Double(conversationManager.lowFrequency) * 0.3
+          time: currentTime,
+          audioLevel: audioLevel,
+          maxRadius: maxRadius
         )
         
-        // Draw mid-frequency ring
-        let midRing = mainRadius - 15
-        drawRing(
+        // Rotating arc segments (main visual element)
+        drawRotatingArcs(
           context: &context,
           center: center,
-          radius: midRing,
-          width: 8 + CGFloat(conversationManager.midFrequency) * 15,
-          color: edgeColor,
-          opacity: 0.4 + Double(conversationManager.midFrequency) * 0.6
+          time: currentTime,
+          audioLevel: audioLevel,
+          maxRadius: maxRadius
         )
         
-        // Draw main circle with gradient
-        drawMainCircle(
+        // Central orb
+        drawCentralOrb(
           context: &context,
           center: center,
-          radius: mainRadius,
-          centerColor: centerColor,
-          edgeColor: edgeColor
+          time: currentTime,
+          audioLevel: audioLevel,
+          maxRadius: maxRadius
         )
         
-        // Draw high-frequency sparkles
-        if conversationManager.highFrequency > 0.1 {
-          drawSparkles(
-            context: &context,
-            center: center,
-            radius: mainRadius,
-            count: Int(conversationManager.highFrequency * 20),
-            time: currentTime
-          )
-        }
-        
-        // Draw directional flow particles
-        if conversationManager.conversationState == .userSpeaking {
-          drawFlowParticles(
-            context: &context,
-            center: center,
-            radius: mainRadius,
-            direction: -1, // Inward
-            color: centerColor,
-            time: currentTime
-          )
-        } else if conversationManager.conversationState == .aiSpeaking {
-          drawFlowParticles(
-            context: &context,
-            center: center,
-            radius: mainRadius,
-            direction: 1, // Outward
-            color: centerColor,
-            time: currentTime
-          )
-        }
-        
-        // Draw rotating pattern when AI is thinking
-        if conversationManager.conversationState == .aiThinking {
-          drawThinkingPattern(
-            context: &context,
-            center: center,
-            radius: mainRadius,
-            color: centerColor,
-            time: currentTime
-          )
-        }
-        
-        // Inner core glow
-        drawGlowCircle(
+        // Subtle particle ring
+        drawParticleRing(
           context: &context,
           center: center,
-          radius: mainRadius * 0.3,
-          color: centerColor,
-          opacity: 0.8
+          time: currentTime,
+          audioLevel: audioLevel,
+          maxRadius: maxRadius
         )
       }
     }
   }
   
-  private func getStateProperties() -> (Float, Color, Color) {
-    let activeLevel: Float
-    let centerColor: Color
-    let edgeColor: Color
-    
+  private func getAudioLevel() -> CGFloat {
     switch conversationManager.conversationState {
     case .idle:
-      activeLevel = max(conversationManager.audioLevel, conversationManager.aiAudioLevel) * 0.3
-      centerColor = idleCenterColor
-      edgeColor = idleEdgeColor
-      
+      return CGFloat(max(conversationManager.audioLevel, conversationManager.aiAudioLevel)) * 0.3
     case .userSpeaking:
-      activeLevel = conversationManager.audioLevel
-      centerColor = userCenterColor
-      edgeColor = userEdgeColor
-      
+      return CGFloat(conversationManager.audioLevel)
     case .aiThinking:
-      activeLevel = conversationManager.aiAudioLevel
-      centerColor = thinkingCenterColor
-      edgeColor = thinkingEdgeColor
-      
+      return 0.5
     case .aiSpeaking:
-      activeLevel = conversationManager.aiAudioLevel
-      centerColor = aiCenterColor
-      edgeColor = aiEdgeColor
+      return CGFloat(conversationManager.aiAudioLevel)
     }
-    
-    return (activeLevel, centerColor, edgeColor)
   }
   
-  private func drawMainCircle(
+  
+  
+  private func drawAmbientGlow(
     context: inout GraphicsContext,
     center: CGPoint,
-    radius: CGFloat,
-    centerColor: Color,
-    edgeColor: Color
+    time: TimeInterval,
+    audioLevel: CGFloat,
+    maxRadius: CGFloat
   ) {
+    let pulse = sin(time * 1.2) * 0.1 + 0.9
+    // Scale radius significantly with audio level
+    let audioScale = 1.0 + audioLevel * 0.8
+    let radius = maxRadius * 0.9 * pulse * audioScale
+    
+    let gradient = Gradient(colors: [
+      currentPalette.primary.opacity(0.15 * (1.0 + audioLevel * 1.2)),
+      currentPalette.primary.opacity(0)
+    ])
+    
+    let radialGradient = GraphicsContext.Shading.radialGradient(
+      gradient,
+      center: center,
+      startRadius: radius * 0.3,
+      endRadius: radius
+    )
+    
     let circlePath = Circle()
       .path(in: CGRect(
         x: center.x - radius,
@@ -178,120 +118,199 @@ struct SwiftUIAudioVisualizerView: View {
         width: radius * 2,
         height: radius * 2
       ))
-    
-    let gradient = Gradient(colors: [centerColor, edgeColor])
-    let radialGradient = GraphicsContext.Shading.radialGradient(
-      gradient,
-      center: center,
-      startRadius: 0,
-      endRadius: radius
-    )
     
     context.fill(circlePath, with: radialGradient)
   }
   
-  private func drawGlowCircle(
-    context: inout GraphicsContext,
-    center: CGPoint,
-    radius: CGFloat,
-    color: Color,
-    opacity: Double
-  ) {
-    let circlePath = Circle()
-      .path(in: CGRect(
-        x: center.x - radius,
-        y: center.y - radius,
-        width: radius * 2,
-        height: radius * 2
-      ))
-    
-    context.opacity = opacity
-    context.fill(circlePath, with: .color(color))
-    context.opacity = 1.0
-  }
   
-  private func drawRing(
-    context: inout GraphicsContext,
-    center: CGPoint,
-    radius: CGFloat,
-    width: CGFloat,
-    color: Color,
-    opacity: Double
-  ) {
-    let outerRadius = radius + width / 2
-    let innerRadius = radius - width / 2
-    
-    let outerCircle = Circle()
-      .path(in: CGRect(
-        x: center.x - outerRadius,
-        y: center.y - outerRadius,
-        width: outerRadius * 2,
-        height: outerRadius * 2
-      ))
-    
-    let innerCircle = Circle()
-      .path(in: CGRect(
-        x: center.x - innerRadius,
-        y: center.y - innerRadius,
-        width: innerRadius * 2,
-        height: innerRadius * 2
-      ))
-    
-    context.opacity = opacity
-    var path = Path()
-    path.addPath(outerCircle)
-    path.addPath(innerCircle)
-    context.fill(path, with: .color(color), style: FillStyle(eoFill: true))
-    context.opacity = 1.0
-  }
   
-  private func drawSparkles(
+  private func drawRotatingArcs(
     context: inout GraphicsContext,
     center: CGPoint,
-    radius: CGFloat,
-    count: Int,
-    time: TimeInterval
+    time: TimeInterval,
+    audioLevel: CGFloat,
+    maxRadius: CGFloat
   ) {
-    for i in 0..<count {
-      let angle = Double(i) * (2 * .pi / Double(count)) + time * 0.5
-      let distance = radius * 0.7 + CGFloat.random(in: 0...(radius * 0.3))
-      let x = center.x + cos(angle) * distance
-      let y = center.y + sin(angle) * distance
-      let sparkleSize: CGFloat = 3
+    let arcCount = 3
+    let baseRadius = maxRadius * 0.55
+    
+    for i in 0..<arcCount {
+      let rotationSpeed = 0.8 + Double(i) * 0.3
+      let rotation = time * rotationSpeed + Double(i) * (.pi * 2 / 3)
       
-      let sparklePath = Circle()
-        .path(in: CGRect(
-          x: x - sparkleSize,
-          y: y - sparkleSize,
-          width: sparkleSize * 2,
-          height: sparkleSize * 2
-        ))
+      // Enhanced dynamic radius based on audio - bounce effect
+      let radiusOffset = sin(time * 2 + Double(i)) * maxRadius * 0.05 * audioLevel
+      let audioBounce = maxRadius * 0.15 * audioLevel // Increased bounce range
+      let arcRadius = baseRadius + radiusOffset + audioBounce
       
-      context.opacity = 0.8
-      context.fill(sparklePath, with: .color(.white))
+      // Arc parameters - arc length increases with audio
+      let baseArcLength = .pi * 0.5
+      let arcLength = baseArcLength * (1.0 + audioLevel * 0.3)
+      let startAngle = rotation
+      let endAngle = rotation + arcLength
+      
+      // Stroke width bounces with audio
+      let strokeWidth = maxRadius * 0.04 * (1 + audioLevel * 0.8)
+      
+      // Create arc path
+      var path = Path()
+      path.addArc(
+        center: center,
+        radius: arcRadius,
+        startAngle: Angle(radians: startAngle),
+        endAngle: Angle(radians: endAngle),
+        clockwise: false
+      )
+      
+      // Gradient for arc with enhanced brightness
+      let gradient = Gradient(colors: [
+        currentPalette.secondary.opacity(0.8 + audioLevel * 0.2),
+        currentPalette.accent.opacity(0.9 + audioLevel * 0.1)
+      ])
+      
+      let angularGradient = GraphicsContext.Shading.linearGradient(
+        gradient,
+        startPoint: CGPoint(
+          x: center.x + Foundation.cos(startAngle) * arcRadius,
+          y: center.y + sin(startAngle) * arcRadius
+        ),
+        endPoint: CGPoint(
+          x: center.x + Foundation.cos(endAngle) * arcRadius,
+          y: center.y + sin(endAngle) * arcRadius
+        )
+      )
+      
+      // Draw arc with glow that intensifies with audio
+      context.opacity = 0.15 * (1 + audioLevel * 0.5)
+      context.stroke(
+        path,
+        with: angularGradient,
+        lineWidth: strokeWidth * 2.5
+      )
+      
+      context.opacity = 0.8 + audioLevel * 0.2
+      context.stroke(
+        path,
+        with: angularGradient,
+        style: StrokeStyle(
+          lineWidth: strokeWidth,
+          lineCap: .round
+        )
+      )
     }
+    
     context.opacity = 1.0
   }
   
-  private func drawFlowParticles(
+  
+  
+  private func drawCentralOrb(
     context: inout GraphicsContext,
     center: CGPoint,
-    radius: CGFloat,
-    direction: CGFloat,
-    color: Color,
-    time: TimeInterval
+    time: TimeInterval,
+    audioLevel: CGFloat,
+    maxRadius: CGFloat
+  ) {
+    // Smooth breathing animation combined with audio bounce
+    let breathe = sin(time * 1.5) * 0.08 + 0.92
+    let audioPulse = 1.0 + audioLevel * 0.6 // Increased audio response
+    let orbRadius = maxRadius * 0.18 * breathe * audioPulse
+    
+    // Outer glow expands dramatically with audio
+    let glowExpansion = 1.0 + audioLevel * 0.8
+    let glowRadius = orbRadius * 2.2 * glowExpansion
+    let glowGradient = Gradient(colors: [
+      currentPalette.accent.opacity(0.3 * (1.0 + audioLevel * 0.7)),
+      currentPalette.accent.opacity(0)
+    ])
+    
+    let glowRadial = GraphicsContext.Shading.radialGradient(
+      glowGradient,
+      center: center,
+      startRadius: orbRadius,
+      endRadius: glowRadius
+    )
+    
+    let glowPath = Circle()
+      .path(in: CGRect(
+        x: center.x - glowRadius,
+        y: center.y - glowRadius,
+        width: glowRadius * 2,
+        height: glowRadius * 2
+      ))
+    
+    context.fill(glowPath, with: glowRadial)
+    
+    // Main orb with gradient
+    let orbGradient = Gradient(colors: [
+      currentPalette.accent,
+      currentPalette.primary
+    ])
+    
+    let orbRadial = GraphicsContext.Shading.radialGradient(
+      orbGradient,
+      center: CGPoint(
+        x: center.x - orbRadius * 0.2,
+        y: center.y - orbRadius * 0.2
+      ),
+      startRadius: 0,
+      endRadius: orbRadius
+    )
+    
+    let orbPath = Circle()
+      .path(in: CGRect(
+        x: center.x - orbRadius,
+        y: center.y - orbRadius,
+        width: orbRadius * 2,
+        height: orbRadius * 2
+      ))
+    
+    context.fill(orbPath, with: orbRadial)
+    
+    // Inner highlight brightens with audio
+    let highlightRadius = orbRadius * 0.35
+    let highlightPath = Circle()
+      .path(in: CGRect(
+        x: center.x - highlightRadius - orbRadius * 0.2,
+        y: center.y - highlightRadius - orbRadius * 0.2,
+        width: highlightRadius * 2,
+        height: highlightRadius * 2
+      ))
+    
+    context.opacity = 0.7 + audioLevel * 0.3
+    context.fill(highlightPath, with: .color(.white))
+    context.opacity = 1.0
+  }
+  
+  
+  
+  private func drawParticleRing(
+    context: inout GraphicsContext,
+    center: CGPoint,
+    time: TimeInterval,
+    audioLevel: CGFloat,
+    maxRadius: CGFloat
   ) {
     let particleCount = 12
+    let baseRingRadius = maxRadius * 0.7
+    
+    // Ring expands outward with audio
+    let audioExpansion = audioLevel * maxRadius * 0.15
+    let ringRadius = baseRingRadius + audioExpansion
+    
     for i in 0..<particleCount {
-      let angle = Double(i) * (2 * .pi / Double(particleCount))
-      let flowOffset = (time * 2).truncatingRemainder(dividingBy: 1.0)
-      let distance = direction > 0 ?
-      radius * 0.5 + CGFloat(flowOffset) * radius * 0.5 :
-      radius * (1.0 - CGFloat(flowOffset))
+      let baseAngle = Double(i) * (2 * .pi / Double(particleCount))
+      let waveOffset = sin(time * 2 + Double(i) * 0.5) * 0.15 * audioLevel
+      let angle = baseAngle + time * 0.4
       
-      let x = center.x + cos(angle) * distance
-      let y = center.y + sin(angle) * distance
-      let particleSize: CGFloat = 4
+      let radius = ringRadius + waveOffset * maxRadius * 0.1
+      let x = center.x + cos(angle) * radius
+      let y = center.y + sin(angle) * radius
+      
+      // Particle size varies dramatically with audio
+      let particleSize = maxRadius * 0.02 * (1 + audioLevel * 1.2)
+      let fadePhase = (time * 3 + Double(i) * 0.3).truncatingRemainder(dividingBy: 2 * .pi)
+      let fade = (sin(fadePhase) + 1) / 2
       
       let particlePath = Circle()
         .path(in: CGRect(
@@ -301,49 +320,73 @@ struct SwiftUIAudioVisualizerView: View {
           height: particleSize * 2
         ))
       
-      context.opacity = 0.6
-      context.fill(particlePath, with: .color(color))
+      // Brightness increases with audio
+      context.opacity = (0.6 + audioLevel * 0.4) * fade
+      context.fill(particlePath, with: .color(currentPalette.accent))
     }
-    context.opacity = 1.0
-  }
-  
-  private func drawThinkingPattern(
-    context: inout GraphicsContext,
-    center: CGPoint,
-    radius: CGFloat,
-    color: Color,
-    time: TimeInterval
-  ) {
-    let armCount = 6
-    let rotation = time * 3
     
-    for i in 0..<armCount {
-      let angle = Double(i) * (2 * .pi / Double(armCount)) + rotation
-      let startDistance = radius * 0.6
-      let endDistance = radius * 0.9
-      
-      let startX = center.x + cos(angle) * startDistance
-      let startY = center.y + sin(angle) * startDistance
-      let endX = center.x + cos(angle) * endDistance
-      let endY = center.y + sin(angle) * endDistance
-      
-      var path = Path()
-      path.move(to: CGPoint(x: startX, y: startY))
-      path.addLine(to: CGPoint(x: endX, y: endY))
-      
-      context.opacity = 0.4
-      context.stroke(
-        path,
-        with: .color(color),
-        lineWidth: 3
-      )
-    }
     context.opacity = 1.0
   }
 }
 
-#Preview {
-  SwiftUIAudioVisualizerView(conversationManager: ConversationManager())
-    .frame(width: 300, height: 300)
-    .background(Color.black)
+// Modern color palette structure
+struct ColorPaletteTeal {
+  let primary: Color
+  let secondary: Color
+  let accent: Color
+  
+  static let idle = ColorPalette(
+    primary: Color(red: 0.2, green: 0.8, blue: 0.7),
+    secondary: Color(red: 0.15, green: 0.65, blue: 0.6),
+    accent: Color(red: 0.3, green: 0.95, blue: 0.85)
+  )
+  
+  static let userSpeaking = ColorPalette(
+    primary: Color(red: 0.1, green: 0.7, blue: 0.65),      // Deeper teal
+    secondary: Color(red: 0.08, green: 0.55, blue: 0.52),   // Richer secondary
+    accent: Color(red: 0.15, green: 0.85, blue: 0.78)       // Vibrant deep accent
+  )
+  
+  static let aiThinking = ColorPalette(
+    primary: Color(red: 0.25, green: 0.85, blue: 0.75),     // Brighter teal
+    secondary: Color(red: 0.2, green: 0.7, blue: 0.65),     // Mid-tone
+    accent: Color(red: 0.35, green: 1.0, blue: 0.9)         // Bright cyan-teal
+  )
+  
+  static let aiSpeaking = ColorPalette(
+    primary: Color(red: 0.15, green: 0.75, blue: 0.72),     // Balanced teal
+    secondary: Color(red: 0.12, green: 0.6, blue: 0.58),    // Slightly muted
+    accent: Color(red: 0.25, green: 0.9, blue: 0.88)        // Clear bright accent
+  )
+}
+
+// Modern color palette structure
+struct ColorPalette {
+  let primary: Color
+  let secondary: Color
+  let accent: Color
+  
+  static let idle = ColorPalette(
+    primary: Color(red: 0.8, green: 0.47, blue: 0.36),      // #CC785C - warm coral
+    secondary: Color(red: 0.7, green: 0.37, blue: 0.26),    // Deeper coral
+    accent: Color(red: 0.9, green: 0.57, blue: 0.46)        // Lighter coral
+  )
+  
+  static let userSpeaking = ColorPalette(
+    primary: Color(red: 0.82, green: 0.45, blue: 0.32),     // Slightly warmer coral
+    secondary: Color(red: 0.72, green: 0.35, blue: 0.22),   // Richer depth
+    accent: Color(red: 0.92, green: 0.55, blue: 0.42)       // Brighter coral
+  )
+  
+  static let aiThinking = ColorPalette(
+    primary: Color(red: 0.78, green: 0.49, blue: 0.38),     // Softer coral
+    secondary: Color(red: 0.68, green: 0.39, blue: 0.28),   // Muted depth
+    accent: Color(red: 0.88, green: 0.59, blue: 0.48)       // Gentle coral
+  )
+  
+  static let aiSpeaking = ColorPalette(
+    primary: Color(red: 0.84, green: 0.48, blue: 0.34),     // Vibrant coral
+    secondary: Color(red: 0.74, green: 0.38, blue: 0.24),   // Bold depth
+    accent: Color(red: 0.94, green: 0.58, blue: 0.44)       // Bright coral
+  )
 }
