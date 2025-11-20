@@ -77,11 +77,11 @@ public struct ContentView: View {
     }
 #if os(macOS)
     .sheet(isPresented: $showingVoiceMode) {
-      VoiceModeView()
+      VoiceModeView(presentationMode: .presented)
     }
 #else
     .fullScreenCover(isPresented: $showingVoiceMode) {
-      VoiceModeView()
+      VoiceModeView(presentationMode: .presented)
     }
 #endif
   }

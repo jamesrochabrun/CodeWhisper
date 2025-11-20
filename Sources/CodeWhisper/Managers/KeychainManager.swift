@@ -38,7 +38,8 @@ public final class KeychainManager {
             kSecAttrAccount as String: key,
             kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.codewhisper.app",
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecUseDataProtectionKeychain as String: true
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -61,7 +62,8 @@ public final class KeychainManager {
             kSecAttrAccount as String: key,
             kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.codewhisper.app",
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecUseDataProtectionKeychain as String: true
         ]
 
         var result: AnyObject?
@@ -89,7 +91,8 @@ public final class KeychainManager {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
-            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.codewhisper.app"
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.codewhisper.app",
+            kSecUseDataProtectionKeychain as String: true
         ]
 
         let status = SecItemDelete(query as CFDictionary)

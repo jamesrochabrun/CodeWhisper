@@ -16,7 +16,7 @@ struct CodeWhisperApp: App {
 
   var body: some Scene {
     WindowGroup {
-      ContentView()
+      VoiceModeView()
         .environment(settingsManager)
         .environment(mcpServerManager)
         .environment(serviceManager)
@@ -33,5 +33,8 @@ struct CodeWhisperApp: App {
           serviceManager.setMCPServerManager(mcpServerManager)
         }
     }
+    .windowStyle(.hiddenTitleBar) // Hides title bar, keeps traffic lights
+    .windowStyle(.titleBar)        // Standard title bar
+    .windowStyle(.automatic)       // System default
   }
 }
