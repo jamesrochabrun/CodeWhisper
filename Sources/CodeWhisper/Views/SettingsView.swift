@@ -19,17 +19,53 @@ public struct SettingsView: View {
     NavigationStack {
       Form {
         Section {
-          SecureField("Enter your OpenAI API Key", text: $settingsManager.apiKey)
-            .textContentType(.password)
-            .autocorrectionDisabled()
+          if settingsManager.isUsingEnvironmentVariable {
+            VStack(alignment: .leading, spacing: 8) {
+              HStack {
+                Image(systemName: "checkmark.shield.fill")
+                  .foregroundStyle(.green)
+                Text("API Key Loaded from Environment")
+                  .font(.headline)
+              }
+
+              Text("Using OPENAI_API_KEY environment variable")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+              Text("To change the key, update your environment variable and restart the app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 8)
+          } else {
+            VStack(alignment: .leading, spacing: 8) {
+              SecureField("Enter your OpenAI API Key", text: $settingsManager.apiKey)
+                .textContentType(.password)
+                .autocorrectionDisabled()
 #if !os(macOS)
-            .textInputAutocapitalization(.never)
+                .textInputAutocapitalization(.never)
 #endif
+
+              if settingsManager.hasValidAPIKey {
+                HStack {
+                  Image(systemName: "lock.shield.fill")
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+                  Text("Stored securely in Keychain")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+              }
+            }
+          }
         } header: {
           Text("OpenAI Configuration")
         } footer: {
-          Text("Your API key is stored locally and only used to authenticate with OpenAI's Realtime API.")
-            .font(.caption)
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Your API key is stored securely in the system Keychain and only used to authenticate with OpenAI's Realtime API.")
+            Text("Alternatively, set the OPENAI_API_KEY environment variable before launching the app.")
+          }
+          .font(.caption)
         }
 
         Section {
@@ -89,7 +125,12 @@ public struct SettingsView: View {
           } label: {
             Text("Clear API Key")
           }
-          .disabled(!settingsManager.hasValidAPIKey)
+          .disabled(!settingsManager.hasValidAPIKey || settingsManager.isUsingEnvironmentVariable)
+        } footer: {
+          if settingsManager.isUsingEnvironmentVariable {
+            Text("Cannot clear API key when using environment variable")
+              .font(.caption)
+          }
         }
       }
       .navigationTitle("Settings")
