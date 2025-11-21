@@ -83,51 +83,97 @@ struct MyView: View {
 }
 ```
 
-## Required Permissions
+## Required Permissions & Entitlements
+
+CodeWhisper requires specific permissions and entitlements to enable its features. This section covers all the configuration needed for consumer apps.
 
 ### Info.plist Keys
 
 Add the following keys to your app's `Info.plist`:
 
 ```xml
+<!-- Required: Voice conversation functionality -->
 <key>NSMicrophoneUsageDescription</key>
-<string>CodeWhisper needs microphone access for voice conversations with AI</string>
+<string>CodeWhisper needs access to your microphone to enable real-time voice conversations with AI.</string>
 
+<!-- Required: Screenshot capture functionality -->
 <key>NSScreenCaptureUsageDescription</key>
-<string>CodeWhisper needs screen capture access to share visual context with AI</string>
+<string>CodeWhisper needs screen recording permission to capture screenshots that you can share with the AI assistant for visual context.</string>
 ```
 
-### Entitlements
+### Entitlements (macOS)
 
-#### macOS
-For macOS apps, you need to configure the following entitlements:
+Create a `YourApp.entitlements` file with the following configuration:
 
-1. **Microphone Access**: Required for voice conversations
-2. **Screen Capture**: Required for screenshot functionality
-3. **App Sandbox**: Disable App Sandbox or configure appropriate exceptions for file system access
-
-Example `YourApp.entitlements`:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>com.apple.security.device.microphone</key>
-    <true/>
-    <key>com.apple.security.device.camera</key>
-    <true/>
+    <!-- Disable App Sandbox for Claude Code file system access -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
+
+    <!-- Required: Microphone access for voice conversations -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Required: Screen capture for screenshot functionality -->
+    <key>com.apple.security.device.screen-capture</key>
+    <true/>
+
+    <!-- Required: Keychain access for secure API key storage -->
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)YOUR_BUNDLE_ID</string>
+    </array>
 </dict>
 </plist>
 ```
 
-**Note**: For App Store distribution, you'll need to enable App Sandbox and request specific entitlements. For development and non-App Store distribution, you can disable App Sandbox as shown above.
+> **Important**: Replace `YOUR_BUNDLE_ID` with your actual app bundle identifier (e.g., `com.yourcompany.yourapp`).
 
-#### iOS/visionOS
+### Entitlements Breakdown
+
+| Entitlement | Purpose | Required For |
+|-------------|---------|--------------|
+| `com.apple.security.app-sandbox` = `false` | Disables sandboxing | Claude Code file system operations |
+| `com.apple.security.device.audio-input` | Microphone access | Voice conversations with OpenAI Realtime API |
+| `com.apple.security.device.screen-capture` | Screen recording | Screenshot capture via ScreenCaptureKit |
+| `keychain-access-groups` | Keychain access | Secure storage of API keys |
+
+### Runtime Permissions
+
+The following permissions will be requested at runtime (macOS will show system dialogs):
+
+1. **Microphone Permission**: Requested when starting a voice conversation
+   - System Settings → Privacy & Security → Microphone
+
+2. **Screen Recording Permission**: Requested when capturing screenshots
+   - System Settings → Privacy & Security → Screen Recording
+
+### iOS/visionOS
+
 For iOS and visionOS apps:
 - Microphone permission is requested automatically when needed
-- No additional entitlements required beyond Info.plist keys
+- Screen recording is not available on iOS (screenshots use different APIs)
+- No additional entitlements file required beyond Info.plist keys
+
+### App Store Distribution
+
+For **App Store distribution**, you cannot disable App Sandbox. You'll need to:
+
+1. Enable App Sandbox: `com.apple.security.app-sandbox` = `true`
+2. Add specific file access entitlements:
+   ```xml
+   <key>com.apple.security.files.user-selected.read-write</key>
+   <true/>
+   <key>com.apple.security.files.downloads.read-write</key>
+   <true/>
+   ```
+3. Note: Full Claude Code functionality may be limited due to sandbox restrictions
+
+For **non-App Store distribution** (Developer ID, direct distribution), disabling the sandbox as shown above is recommended for full functionality.
 
 ## Configuration
 

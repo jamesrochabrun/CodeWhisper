@@ -9,9 +9,6 @@ import Foundation
 import Observation
 import SwiftOpenAI
 import AVFoundation
-import ClaudeCodeCore
-import ClaudeCodeSDK
-import CCCustomPermissionService
 import ScreenCaptureKit
 
 // Actor to safely share state between MainActor and RealtimeActor
@@ -535,81 +532,13 @@ public final class ConversationManager {
     self.settingsManager = manager
   }
   
-  /// Initialize Claude Code manager
-  public func initializeClaudeCode() {
-    do {
-      // Following ClaudeCodeContainer pattern for proper initialization
-      
-      // 1. Create configuration with working directory and debug logging
-      var config = ClaudeCodeConfiguration.withNvmSupport()
-      let homeDir = NSHomeDirectory()
-      config.workingDirectory = settingsManager?.workingDirectory ?? homeDir
-      config.enableDebugLogging = true
-      // PRIORITY 1: Check for local Claude installation (usually the newest version)
-      // This is typically installed via the Claude installer, not npm
-      let localClaudePath = "\(homeDir)/.claude/local"
-      if FileManager.default.fileExists(atPath: localClaudePath) {
-        // Insert at beginning for highest priority
-        config.additionalPaths.insert(localClaudePath, at: 0)
-      }
-      // PRIORITY 2: Add essential system paths and common development tools
-      // The SDK uses /bin/zsh -l -c which loads the user's shell environment,
-      // so these are mainly fallbacks for tools installed in standard locations
-      config.additionalPaths.append(contentsOf: [
-        "/usr/local/bin",           // Homebrew on Intel Macs, common Unix tools
-        "/opt/homebrew/bin",        // Homebrew on Apple Silicon
-        "/usr/bin",                 // System binaries
-        "\(homeDir)/.bun/bin",      // Bun JavaScript runtime
-        "\(homeDir)/.deno/bin",     // Deno JavaScript runtime
-        "\(homeDir)/.cargo/bin",    // Rust cargo
-        "\(homeDir)/.local/bin"     // Python pip user installs
-      ])
-      print("🔧 ConversationManager: Initializing Claude Code with working directory: \(config.workingDirectory ?? "nil")")
-      print("🔧 ConversationManager: Debug logging enabled: \(config.enableDebugLogging)")
-      
-      // 2. Create Claude Code client with configuration
-      let claudeClient = try ClaudeCodeClient(configuration: config)
-      
-      // 3. Create dependencies (following ClaudeCodeContainer pattern)
-      let sessionStorage = NoOpSessionStorage()
-      let settingsStorage = SettingsStorageManager()
-      let globalPreferences = GlobalPreferencesStorage()
-      let permissionService = DefaultCustomPermissionService()
-      
-      // 4. Create ChatViewModel with all dependencies
-      let chatViewModel = ChatViewModel(
-        claudeClient: claudeClient,
-        sessionStorage: sessionStorage,
-        settingsStorage: settingsStorage,
-        globalPreferences: globalPreferences,
-        customPermissionService: permissionService,
-        systemPromptPrefix: nil,
-        shouldManageSessions: false,
-        onSessionChange: nil,
-        onUserMessageSent: nil
-      )
-      
-      // 5. Set permission mode from settings
-      let permissionMode: ClaudeCodeSDK.PermissionMode = (settingsManager?.bypassPermissions == true) ? .bypassPermissions : .default
-      chatViewModel.permissionMode = permissionMode
-      print("[MCPPERMISSION] 🔐 Permission mode set to: \(permissionMode.rawValue)")
-      
-      // 6. Set working directory in view model (following ClaudeCodeContainer pattern)
-      let workingDir = settingsManager?.workingDirectory ?? homeDir
-      chatViewModel.projectPath = config.workingDirectory ?? workingDir
-      settingsStorage.setProjectPath(config.workingDirectory ?? workingDir)
-      
-      // 7. Create manager with configured view model
-      let manager = ClaudeCodeManager()
-      manager.initialize(chatViewModel: chatViewModel)
-      self.claudeCodeManager = manager
-      
-      print("✅ ConversationManager: Claude Code initialized successfully")
-      
-    } catch {
-      print("❌ ConversationManager: Failed to initialize Claude Code: \(error)")
-      self.claudeCodeManager = nil
-    }
+  /// Initialize Claude Code manager with dependency injection
+  /// The executor is created and configured by the calling application
+  public func setClaudeCodeExecutor(_ executor: ClaudeCodeExecutor) {
+    let manager = ClaudeCodeManager()
+    manager.initialize(executor: executor)
+    self.claudeCodeManager = manager
+    print("✅ ConversationManager: Claude Code executor set successfully")
   }
   
   /// Handle function/tool calls from the AI

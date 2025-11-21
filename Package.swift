@@ -18,7 +18,6 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/jamesrochabrun/SwiftOpenAI.git", exact: "4.4.4"),
-        .package(url: "https://github.com/jamesrochabrun/ClaudeCodeUI", exact: "1.7.8"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -27,7 +26,6 @@ let package = Package(
             name: "CodeWhisper",
             dependencies: [
                 .product(name: "SwiftOpenAI", package: "SwiftOpenAI"),
-                .product(name: "ClaudeCodeCore", package: "ClaudeCodeUI"),
             ],
             path: "Sources/CodeWhisper"
         ),
