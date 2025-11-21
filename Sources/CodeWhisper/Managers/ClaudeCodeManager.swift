@@ -2,13 +2,12 @@
 //  ClaudeCodeManager.swift
 //  CodeWhisper
 //
-//  Manages Claude Code SDK integration for voice-triggered coding tasks
-//  Uses ChatViewModel from ClaudeCodeUI package
+//  Manages Claude Code integration for voice-triggered coding tasks
+//  Uses protocol-based architecture for dependency inversion
 //
 
 import Foundation
 import Observation
-import ClaudeCodeCore
 
 /// Represents the current state of Claude Code execution
 enum ClaudeCodeState: Equatable {
@@ -24,7 +23,7 @@ public struct ClaudeCodeProgress: Identifiable, Equatable {
   let type: ProgressType
   let content: String
   let timestamp: Date
-  
+
   enum ProgressType: Equatable {
     case thinking
     case toolCall(name: String, parameters: String)
@@ -32,7 +31,7 @@ public struct ClaudeCodeProgress: Identifiable, Equatable {
     case result
     case error
   }
-  
+
   public static func == (lhs: ClaudeCodeProgress, rhs: ClaudeCodeProgress) -> Bool {
     lhs.id == rhs.id
   }
@@ -43,112 +42,119 @@ public struct ClaudeCodeProgress: Identifiable, Equatable {
 public final class ClaudeCodeManager {
   // Current state
   private(set) var state: ClaudeCodeState = .idle
-  
+
   // Streaming progress updates
   private(set) var progressUpdates: [ClaudeCodeProgress] = []
-  
+
   // Final result for AI to summarize
   private(set) var lastResult: String?
-  
-  // ChatViewModel from ClaudeCodeUI
-  private var chatViewModel: ChatViewModel?
-  
+
+  // Protocol-based executor (replaces ChatViewModel)
+  private var executor: ClaudeCodeExecutor?
+
   // Stream cancellation
   private var currentTask: Task<Void, Never>?
-  
+
   // MARK: - Initialization
-  
-  /// Initialize with an existing ChatViewModel from ClaudeCodeUI
-  public func initialize(chatViewModel: ChatViewModel) {
-    self.chatViewModel = chatViewModel
-    print("ClaudeCodeManager: Initialized with existing ChatViewModel")
+
+  /// Initialize with a ClaudeCodeExecutor implementation
+  public func initialize(executor: ClaudeCodeExecutor) {
+    self.executor = executor
+    print("ClaudeCodeManager: Initialized with executor")
   }
-  
+
   // MARK: - Execution
-  
+
   /// Execute a Claude Code task with streaming progress
-  public func executeTask(_ task: String) async throws -> String {
-    guard let chatViewModel = chatViewModel else {
+  public func executeTask(_ task: String, context: TaskContext? = nil) async throws -> String {
+    guard let executor = executor else {
       print("❌ ClaudeCodeManager: Not initialized")
       throw ClaudeCodeError.notInitialized
     }
-    
+
     print("🚀 ClaudeCodeManager: Executing task: \(task)")
-    print("📊 ClaudeCodeManager: ChatViewModel isLoading: \(chatViewModel.isLoading)")
-    print("📊 ClaudeCodeManager: Message count: \(chatViewModel.messages.count)")
-    
+    print("📊 ClaudeCodeManager: Executor isExecuting: \(executor.isExecuting)")
+    print("📊 ClaudeCodeManager: Message count: \(executor.messages.count)")
+
     // Reset state
     state = .processing
     progressUpdates = []
     lastResult = nil
-    
+
     // Cancel any existing task
     currentTask?.cancel()
-    
-    print("📤 ClaudeCodeManager: Sending message to ChatViewModel...")
-    // Send message to Claude Code
-    chatViewModel.sendMessage(
-      task,
-      context: nil,
-      hiddenContext: nil,
-      codeSelections: nil,
-      attachments: nil
-    )
-    print("✅ ClaudeCodeManager: Message sent, isLoading: \(chatViewModel.isLoading)")
-    
+
+    print("📤 ClaudeCodeManager: Sending task to executor...")
+
     // Monitor for completion and stream progress using real-time observation
     currentTask = Task {
       print("⏳ ClaudeCodeManager: Starting real-time message observation...")
-      
-      await observeMessagesRealTime(chatViewModel: chatViewModel)
+      await observeMessagesRealTime(executor: executor)
     }
-    
+
+    // Execute task (non-blocking)
+    Task {
+      do {
+        let result = try await executor.executeTask(task, context: context)
+        print("✅ ClaudeCodeManager: Task completed with result")
+        await MainActor.run {
+          self.lastResult = result.content
+        }
+      } catch {
+        print("❌ ClaudeCodeManager: Task failed with error: \(error)")
+        await MainActor.run {
+          self.state = .error(error.localizedDescription)
+          self.lastResult = "Error: \(error.localizedDescription)"
+        }
+      }
+    }
+
     // Wait for completion
     await currentTask?.value
-    
+
     // Return final result
     guard let result = lastResult else {
       throw ClaudeCodeError.noResult
     }
-    
+
     return result
   }
-  
+
   // MARK: - Real-Time Observation
-  
-  /// Observe ChatViewModel messages in real-time using high-frequency polling
+
+  /// Observe executor messages in real-time using high-frequency polling
   /// This captures both new messages AND content updates to existing messages
-  private func observeMessagesRealTime(chatViewModel: ChatViewModel) async {
+  private func observeMessagesRealTime(executor: ClaudeCodeExecutor) async {
     var lastProcessedCount = 0
     var lastMessageContentHashes: [UUID: Int] = [:]  // Track content changes
     var pollAttempts = 0
     let maxPollAttempts = 2400 // 2 minutes with 50ms intervals
-    
+
     while !Task.isCancelled && pollAttempts < maxPollAttempts {
-      let currentMessages = chatViewModel.messages
-      let isLoading = chatViewModel.isLoading
-      
+      let currentMessages = executor.messages
+      let isExecuting = executor.isExecuting
+
       // Process new messages
       if currentMessages.count > lastProcessedCount {
         let newMessages = currentMessages[lastProcessedCount...]
         print("📨 ClaudeCodeManager: Processing \(newMessages.count) new message(s)")
-        
+
         await MainActor.run {
           for message in newMessages {
             self.handleStreamingMessage(message)
             lastMessageContentHashes[message.id] = message.content.hashValue
           }
         }
-        
+
         lastProcessedCount = currentMessages.count
       }
-      
+
       // Check for content updates in existing messages (streaming text)
       // This catches the incremental updates that don't change the count
       for message in currentMessages {
         let currentHash = message.content.hashValue
         let previousHash = lastMessageContentHashes[message.id]
-        
+
         if previousHash != currentHash {
           print("📨 ClaudeCodeManager: Content updated for message \(message.id)")
           await MainActor.run {
@@ -157,28 +163,30 @@ public final class ClaudeCodeManager {
           }
         }
       }
-      
+
       // Check if processing is complete
-      if !isLoading {
+      if !isExecuting {
         print("✅ ClaudeCodeManager: Processing complete after \(pollAttempts) polls")
         print("📊 ClaudeCodeManager: Final message count: \(currentMessages.count)")
         await MainActor.run {
           self.state = .completed
-          self.lastResult = self.generateResultSummary()
+          if self.lastResult == nil {
+            self.lastResult = self.generateResultSummary(from: currentMessages)
+          }
         }
         break
       }
-      
+
       // Poll every 50ms for very responsive streaming
       try? await Task.sleep(for: .milliseconds(50))
       pollAttempts += 1
-      
+
       // Log every 100 attempts (every 5 seconds)
       if pollAttempts % 100 == 0 {
-        print("⏳ ClaudeCodeManager: Still streaming... (\(pollAttempts) polls, isLoading: \(isLoading), messages: \(currentMessages.count))")
+        print("⏳ ClaudeCodeManager: Still streaming... (\(pollAttempts) polls, isExecuting: \(isExecuting), messages: \(currentMessages.count))")
       }
     }
-    
+
     // Timeout check
     if pollAttempts >= maxPollAttempts {
       print("⏰ ClaudeCodeManager: Timeout after \(pollAttempts) polls")
@@ -189,60 +197,59 @@ public final class ClaudeCodeManager {
       }
     }
   }
-  
+
   // MARK: - Progress Tracking
-  
-  /// Handle streaming messages from ChatViewModel
-  private func handleStreamingMessage(_ message: ChatMessage) {
-    print("📨 Processing message type: \(message.messageType), role: \(message.role)")
-    
-    switch message.messageType {
+
+  /// Handle streaming messages from executor
+  private func handleStreamingMessage(_ message: CodeExecutionMessage) {
+    print("📨 Processing message type: \(message.type), role: \(message.role)")
+
+    switch message.type {
     case .thinking:
       // Skip thinking messages - too verbose
       break
-      
-    case .toolUse:
+
+    case .toolUse(let toolName):
       // Tool invocation (Read, Edit, Bash, etc.)
-      let toolName = message.toolName ?? "Unknown Tool"
       let actionText = formatToolAction(toolName: toolName, parameters: message.content)
       addProgress(
         .toolCall(name: toolName, parameters: ""),
         content: actionText
       )
-      
+
     case .toolResult:
       // Tool execution result (truncated)
       if !message.content.isEmpty {
         let truncated = truncateContent(message.content, maxChars: 80)
         addProgress(.result, content: "Result: \(truncated)")
       }
-      
+
     case .toolError:
       // Tool execution error (truncated)
       if !message.content.isEmpty {
         let truncated = truncateContent(message.content, maxChars: 80)
         addProgress(.error, content: "Error: \(truncated)")
       }
-      
+
     case .text:
       // Regular text response from Claude (truncated)
       if !message.content.isEmpty && message.role == .assistant {
         let truncated = truncateContent(message.content, maxChars: 80)
         addProgress(.result, content: truncated)
       }
-      
+
     case .webSearch:
       // Web search
       if !message.content.isEmpty {
         addProgress(.result, content: "Searching web")
       }
-      
+
     case .toolDenied:
       // User denied tool permission
       if !message.content.isEmpty {
         addProgress(.error, content: "Tool access denied")
       }
-      
+
     case .codeExecution:
       // Code execution
       if !message.content.isEmpty {
@@ -251,7 +258,7 @@ public final class ClaudeCodeManager {
       }
     }
   }
-  
+
   /// Convert tool name to action verb and extract target
   private func formatToolAction(toolName: String, parameters: String) -> String {
     // Convert tool name to action verb
@@ -268,17 +275,17 @@ public final class ClaudeCodeManager {
     case "Task": action = "Starting task"
     default: action = toolName
     }
-    
+
     // Extract target from parameters
     let target = extractToolTarget(from: parameters, toolName: toolName)
-    
+
     if target.isEmpty {
       return action
     } else {
       return "\(action) \(target)"
     }
   }
-  
+
   /// Extract the main target from tool parameters (file path, command, etc.)
   private func extractToolTarget(from parameters: String, toolName: String) -> String {
     // Try to parse JSON parameters
@@ -286,7 +293,7 @@ public final class ClaudeCodeManager {
           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       return ""
     }
-    
+
     // Extract relevant field based on tool type
     let targetField: String
     switch toolName {
@@ -303,25 +310,25 @@ public final class ClaudeCodeManager {
     default:
       return ""
     }
-    
+
     guard let value = json[targetField] as? String else {
       return ""
     }
-    
+
     // For file paths, show just the filename
     if targetField == "file_path" {
       let filename = (value as NSString).lastPathComponent
       return filename
     }
-    
+
     // For commands/patterns, truncate if needed
     if value.count > 40 {
       return String(value.prefix(40)) + "..."
     }
-    
+
     return value
   }
-  
+
   /// Truncate content to specified character limit
   private func truncateContent(_ content: String, maxChars: Int) -> String {
     if content.count > maxChars {
@@ -329,7 +336,7 @@ public final class ClaudeCodeManager {
     }
     return content
   }
-  
+
   private func addProgress(_ type: ClaudeCodeProgress.ProgressType, content: String) {
     let progress = ClaudeCodeProgress(
       type: type,
@@ -339,26 +346,22 @@ public final class ClaudeCodeManager {
     progressUpdates.append(progress)
     print("ClaudeCodeManager Progress: \(content)")
   }
-  
-  private func generateResultSummary() -> String {
-    guard let chatViewModel = chatViewModel else {
-      return "Error: No ChatViewModel available"
-    }
-    
-    // Get messages count and loading state as proxies for what happened
-    let messageCount = chatViewModel.messages.count
+
+  private func generateResultSummary(from messages: [CodeExecutionMessage]) -> String {
+    // Get messages count
+    let messageCount = messages.count
     let hasMessages = messageCount > 0
-    
+
     // Generate simple summary
     var summary = "Claude Code execution completed.\n\n"
-    
+
     if hasMessages {
       summary += "Processed \(messageCount) message(s)\n"
-      
+
       // Try to get the last assistant message text
-      if let lastMessage = chatViewModel.messages.last(where: { $0.role == .assistant }) {
+      if let lastMessage = messages.last(where: { $0.role == .assistant }) {
         let textContent = lastMessage.content
-        
+
         if !textContent.isEmpty {
           summary += "\nResult: \(textContent)"
           addProgress(.result, content: textContent)
@@ -367,16 +370,16 @@ public final class ClaudeCodeManager {
     } else {
       summary += "No messages generated"
     }
-    
+
     return summary
   }
-  
+
   // MARK: - Cleanup
-  
+
   public func cancel() {
     currentTask?.cancel()
     currentTask = nil
-    chatViewModel?.cancelRequest()
+    executor?.cancelTask()
     state = .idle
   }
 }
@@ -386,7 +389,7 @@ public final class ClaudeCodeManager {
 enum ClaudeCodeError: LocalizedError {
   case notInitialized
   case noResult
-  
+
   public var errorDescription: String? {
     switch self {
     case .notInitialized:

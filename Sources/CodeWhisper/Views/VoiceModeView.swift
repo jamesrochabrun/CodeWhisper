@@ -25,9 +25,11 @@ public struct VoiceModeView: View {
   @FocusState private var isTextFieldFocused: Bool
 
   private let presentationMode: PresentationMode
+  private let executor: ClaudeCodeExecutor?
 
-  public init(presentationMode: PresentationMode = .standalone) {
+  public init(presentationMode: PresentationMode = .standalone, executor: ClaudeCodeExecutor? = nil) {
     self.presentationMode = presentationMode
+    self.executor = executor
   }
   
   public var body: some View {
@@ -287,11 +289,16 @@ public struct VoiceModeView: View {
       isInitializing = false
       return
     }
-    
+
     isInitializing = true
     conversationManager.setSettingsManager(settingsManager)
-    conversationManager.initializeClaudeCode()
-    
+
+    // Set the ClaudeCodeExecutor if provided
+    // This allows integration with existing Claude Code configurations
+    if let executor = executor {
+      conversationManager.setClaudeCodeExecutor(executor)
+    }
+
     let configuration = serviceManager.createSessionConfiguration()
     await conversationManager.startConversation(service: service, configuration: configuration)
     isInitializing = false
