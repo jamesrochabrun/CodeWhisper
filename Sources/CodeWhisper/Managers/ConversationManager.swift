@@ -564,10 +564,6 @@ public final class ConversationManager {
         "\(homeDir)/.cargo/bin",    // Rust cargo
         "\(homeDir)/.local/bin"     // Python pip user installs
       ])
-      
-      
-      
-      
       print("🔧 ConversationManager: Initializing Claude Code with working directory: \(config.workingDirectory ?? "nil")")
       print("🔧 ConversationManager: Debug logging enabled: \(config.enableDebugLogging)")
       

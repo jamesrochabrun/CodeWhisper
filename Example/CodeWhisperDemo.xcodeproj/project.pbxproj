@@ -202,8 +202,6 @@
 			mainGroup = 7B7BC8CD2EC1BEA80031D849;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7BBCC44E2ECEDD3400184338 /* XCRemoteSwiftPackageReference "ClaudeCodeUI" */,
-				7BBCC4512ECEDD5700184338 /* XCRemoteSwiftPackageReference "SwiftOpenAI" */,
 				7B7BC9002EC1BEA80031D849 /* XCLocalSwiftPackageReference ".." */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -637,25 +635,6 @@
 			relativePath = ..;
 		};
 /* End XCLocalSwiftPackageReference section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		7BBCC44E2ECEDD3400184338 /* XCRemoteSwiftPackageReference "ClaudeCodeUI" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/jamesrochabrun/ClaudeCodeUI";
-			requirement = {
-				kind = exactVersion;
-				version = 1.7.9;
-			};
-		};
-		7BBCC4512ECEDD5700184338 /* XCRemoteSwiftPackageReference "SwiftOpenAI" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/jamesrochabrun/SwiftOpenAI.git";
-			requirement = {
-				kind = exactVersion;
-				version = 4.4.4;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		7B7BC9012EC1BEA80031D849 /* CodeWhisper */ = {
