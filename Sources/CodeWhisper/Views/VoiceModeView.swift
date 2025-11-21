@@ -9,14 +9,27 @@ import SwiftUI
 import ClaudeCodeCore
 
 public struct VoiceModeView: View {
+
+  public enum PresentationMode {
+    case standalone
+    case presented
+  }
+
   @Environment(OpenAIServiceManager.self) private var serviceManager
   @Environment(SettingsManager.self) private var settingsManager
   @Environment(\.dismiss) private var dismiss
   @State private var conversationManager = ConversationManager()
   @State private var isInitializing = true
   @State private var showScreenshotPicker = false
+  @State private var showingSettings = false
   @State private var textInput: String = ""
   @FocusState private var isTextFieldFocused: Bool
+
+  private let presentationMode: PresentationMode
+
+  public init(presentationMode: PresentationMode = .standalone) {
+    self.presentationMode = presentationMode
+  }
   
   public var body: some View {
     ZStack(alignment: .top) {
@@ -42,6 +55,9 @@ public struct VoiceModeView: View {
         }
       }
     }
+    .sheet(isPresented: $showingSettings) {
+      SettingsView()
+    }
   }
   
   // MARK: - Computed Properties
@@ -53,13 +69,16 @@ public struct VoiceModeView: View {
   // MARK: - View Components
   
   private var toolbar: some View {
-    VStack(spacing: 4) {
+    VStack(spacing: 8) {
       workingDirectoryDisplay
       HStack {
         screenshotButton
         muteButton
         Spacer()
-        closeButton
+        if presentationMode == .presented {
+          closeButton
+        }
+        settingsButton
       }
     }
     .padding()
@@ -73,6 +92,7 @@ public struct VoiceModeView: View {
         .font(.system(size: 28))
         .foregroundStyle(.white.opacity(0.7))
     }
+    .buttonStyle(.plain)
     .disabled(!conversationManager.isConnected)
     .opacity(conversationManager.isConnected ? 1.0 : 0.5)
     .help("Capture and send screenshot")
@@ -84,25 +104,41 @@ public struct VoiceModeView: View {
     } label: {
       Image(systemName: conversationManager.isMicrophoneMuted ? "mic.slash.fill" : "mic.fill")
         .font(.system(size: 28))
-        .foregroundStyle(conversationManager.isMicrophoneMuted ? .red : .white.opacity(0.7))
+        .foregroundStyle(conversationManager.isMicrophoneMuted ? .pink : .white.opacity(0.7))
     }
     .disabled(!conversationManager.isConnected)
+    .buttonStyle(.plain)
     .opacity(conversationManager.isConnected ? 1.0 : 0.5)
     .help(conversationManager.isMicrophoneMuted ? "Unmute microphone (⌘M)" : "Mute microphone (⌘M)")
     .keyboardShortcut("m", modifiers: .command)
   }
-  
+
+  private var settingsButton: some View {
+    Button {
+      showingSettings = true
+    } label: {
+      Image(systemName: "gear")
+        .font(.system(size: 28))
+        .foregroundStyle(.white.opacity(0.7))
+    }
+    .buttonStyle(.plain)
+    .help("Settings")
+  }
+
   private var closeButton: some View {
     Button {
       conversationManager.stopConversation()
       dismiss()
     } label: {
       Image(systemName: "xmark.circle.fill")
-        .font(.system(size: 32))
+        .font(.system(size: 28))
         .foregroundStyle(.white.opacity(0.7))
     }
+    .buttonStyle(.plain)
+    .help("Close (⌘W)")
+    .keyboardShortcut("w", modifiers: .command)
   }
-  
+
   private var audioVisualizer: some View {
     SwiftUIAudioVisualizerView(conversationManager: conversationManager)
       .frame(width: 200, height: 200)
@@ -161,7 +197,7 @@ public struct VoiceModeView: View {
     Text(settingsManager.workingDirectory)
       .font(.system(size: 10, design: .monospaced))
       .foregroundColor(.secondary)
-      .padding(.leading, 12)
+      .padding(.leading, 8)
       .frame(maxWidth: .infinity, alignment: .leading)
   }
   

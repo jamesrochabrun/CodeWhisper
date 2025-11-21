@@ -8,5 +8,9 @@
 	<true/>
 	<key>com.apple.security.device.screen-capture</key>
 	<true/>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)jamesRochabrun.CodeWhisperDemo</string>
+	</array>
 </dict>
 </plist>

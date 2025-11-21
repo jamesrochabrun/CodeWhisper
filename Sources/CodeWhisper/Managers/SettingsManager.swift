@@ -69,16 +69,6 @@ public final class SettingsManager {
       self.apiKey = keychainKey
       print("SettingsManager init - Using API key from Keychain")
     }
-    // Priority 3: Migrate from UserDefaults if exists (backwards compatibility)
-    else if let legacyKey = UserDefaults.standard.string(forKey: "openai_api_key"), !legacyKey.isEmpty {
-      let trimmedKey = legacyKey.trimmingCharacters(in: .whitespacesAndNewlines)
-      self.apiKey = trimmedKey
-      // Migrate to Keychain
-      KeychainManager.shared.save(trimmedKey, forKey: Self.keychainKey)
-      // Clear from UserDefaults
-      UserDefaults.standard.removeObject(forKey: "openai_api_key")
-      print("SettingsManager init - Migrated API key from UserDefaults to Keychain")
-    }
     // No key found
     else {
       self.apiKey = ""
