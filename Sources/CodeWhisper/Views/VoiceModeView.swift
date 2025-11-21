@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import ClaudeCodeCore
 
 public struct VoiceModeView: View {
 
