@@ -131,7 +131,7 @@ public struct SwiftUIAudioVisualizerView: View {
     audioLevel: CGFloat,
     maxRadius: CGFloat
   ) {
-    let arcCount = 3
+    let arcCount = 2
     let baseRadius = maxRadius * 0.55
     
     for i in 0..<arcCount {

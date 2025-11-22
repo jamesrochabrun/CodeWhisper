@@ -45,6 +45,7 @@ public struct VoiceModeView: View {
         conversationTranscript
         textInputSection
       }
+      .animation(.easeInOut, value: conversationManager.errorMessage == nil)
     }
     .task {
       await startConversation()
@@ -230,7 +231,7 @@ public struct VoiceModeView: View {
         Text(message)
           .font(.system(size: 10))
           .foregroundStyle(.white.opacity(0.9))
-          .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
       }
       
       Spacer()
@@ -248,7 +249,7 @@ public struct VoiceModeView: View {
     .padding(16)
     .background(
       RoundedRectangle(cornerRadius: 12)
-        .fill(Color.red.opacity(0.85))
+        .fill(Color.red.opacity(0.7))
         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
     )
     .padding(.horizontal)
