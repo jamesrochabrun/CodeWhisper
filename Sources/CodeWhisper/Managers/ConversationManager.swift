@@ -10,6 +10,7 @@ import Observation
 import SwiftOpenAI
 import AVFoundation
 import ScreenCaptureKit
+import AppKit
 
 // Actor to safely share state between MainActor and RealtimeActor
 actor ReadyState {
@@ -88,7 +89,10 @@ public final class ConversationManager {
   
   // Screenshot capture
   private let screenshotCapture = ScreenshotCapture()
-  
+
+  // Last captured screenshot data (PNG) to pass to Claude Code
+  private var lastCapturedScreenshot: Data?
+
   // Claude Code manager
   private var claudeCodeManager: ClaudeCodeManager?
   
@@ -589,7 +593,7 @@ public final class ConversationManager {
       }
       return
     }
-    
+
     // Convert to base64
     guard let base64URL = screenshotCapture.convertToBase64DataURL(capturedImage) else {
       print("❌ Failed to convert screenshot to base64")
@@ -598,7 +602,14 @@ public final class ConversationManager {
       }
       return
     }
-    
+
+    // Store the screenshot data for Claude Code to use
+    if let tiffData = capturedImage.tiffRepresentation,
+       let bitmapImage = NSBitmapImageRep(data: tiffData),
+       let pngData = bitmapImage.representation(using: .png, properties: [:]) {
+      lastCapturedScreenshot = pngData
+    }
+
     print("✅ Screenshot captured successfully")
     
     // Send the screenshot as an image message
@@ -726,18 +737,27 @@ public final class ConversationManager {
     ))
     
     do {
+      // Create TaskContext with screenshot if available
+      var taskContext: TaskContext?
+      if let screenshotData = lastCapturedScreenshot {
+        let imageData = ImageData(data: screenshotData, mediaType: "image/png")
+        taskContext = TaskContext(images: [imageData])
+        // Clear the screenshot after use
+        lastCapturedScreenshot = nil
+      }
+
       // Start observing progress updates in parallel with execution
       let observationTask = Task {
         var lastProgressCount = 0
-        
+
         while !Task.isCancelled {
           let currentProgressCount = claudeCodeManager.progressUpdates.count
-          
+
           // Add new progress updates to conversation as they arrive
           if currentProgressCount > lastProgressCount {
             let newProgress = claudeCodeManager.progressUpdates[lastProgressCount...]
             print("📨 ConversationManager: Adding \(newProgress.count) new progress update(s)")
-            
+
             await MainActor.run {
               for progress in newProgress {
                 self.messages.append(ConversationMessage(
@@ -748,22 +768,22 @@ public final class ConversationManager {
                 ))
               }
             }
-            
+
             lastProgressCount = currentProgressCount
           }
-          
+
           // Check if execution is complete
           if claudeCodeManager.state == .completed || claudeCodeManager.state == .error("") {
             break
           }
-          
+
           // Poll every 50ms for responsive updates
           try? await Task.sleep(for: .milliseconds(50))
         }
       }
-      
-      // Execute task (this blocks until complete)
-      let result = try await claudeCodeManager.executeTask(task)
+
+      // Execute task with optional screenshot context (this blocks until complete)
+      let result = try await claudeCodeManager.executeTask(task, context: taskContext)
       
       // Cancel observation task
       observationTask.cancel()
