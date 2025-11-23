@@ -73,6 +73,11 @@ public final class ConversationManager {
   
   // Microphone mute state
   private(set) var isMicrophoneMuted = false
+
+  // Tool execution state
+  private(set) var isExecutingTool = false
+  private var currentToolCallId: String?
+  private var toolExecutionTask: Task<Void, Never>?
   
   // Audio levels and frequency data
   private(set) var audioLevel: Float = 0.0           // User mic RMS amplitude
@@ -530,7 +535,55 @@ public final class ConversationManager {
     isMicrophoneMuted.toggle()
     print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
   }
-  
+
+  /// Cancel the current tool execution and send interrupted response to OpenAI
+  public func cancelToolExecution() {
+    guard isExecutingTool else {
+      print("⚠️ No tool execution to cancel")
+      return
+    }
+
+    print("🛑 Cancelling tool execution...")
+
+    // Cancel the tool execution task
+    toolExecutionTask?.cancel()
+    toolExecutionTask = nil
+
+    // Cancel Claude Code execution if running
+    claudeCodeManager?.cancel()
+
+    // Send interrupted response back to OpenAI if we have a callId
+    if let callId = currentToolCallId, let session = realtimeSession {
+      Task {
+        await sendFunctionCallOutput(
+          callId: callId,
+          output: "Execution Interrupted by user",
+          session: session
+        )
+      }
+    }
+
+    // Reset state
+    isExecutingTool = false
+    currentToolCallId = nil
+
+    // Unmute microphone if it was muted for tool execution
+    if isMicrophoneMuted {
+      isMicrophoneMuted = false
+      print("🎤 Resumed microphone after cancellation")
+    }
+
+    // Add interrupted message to conversation
+    messages.append(ConversationMessage(
+      text: "Tool execution interrupted by user",
+      isUser: false,
+      timestamp: Date(),
+      messageType: .claudeCodeError
+    ))
+
+    print("✅ Tool execution cancelled")
+  }
+
   /// Set settings manager for working directory configuration
   public func setSettingsManager(_ manager: SettingsManager) {
     self.settingsManager = manager
@@ -720,7 +773,11 @@ public final class ConversationManager {
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
       return
     }
-    
+
+    // Set tool execution state for cancellation support
+    isExecutingTool = true
+    currentToolCallId = callId
+
     // Pause voice mode (mute microphone)
     let wasMuted = isMicrophoneMuted
     if !wasMuted {
@@ -787,7 +844,13 @@ public final class ConversationManager {
       
       // Cancel observation task
       observationTask.cancel()
-      
+
+      // Check if cancelled during execution
+      guard isExecutingTool else {
+        print("🛑 Tool execution was cancelled")
+        return
+      }
+
       // Process any remaining progress updates
       let processedCount = messages.filter({ $0.messageType == .claudeCodeProgress }).count
       let totalProgressCount = claudeCodeManager.progressUpdates.count
@@ -821,6 +884,12 @@ public final class ConversationManager {
       await sendFunctionCallOutput(callId: callId, output: result, session: session)
       
     } catch {
+      // Check if cancelled during execution
+      guard isExecutingTool else {
+        print("🛑 Tool execution was cancelled")
+        return
+      }
+
       print("❌ Claude Code task failed: \(error)")
       let errorMessage = "Error Claude Code: \(error.localizedDescription)"
       messages.append(ConversationMessage(
@@ -829,11 +898,15 @@ public final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeError
       ))
-      
+
       // Send error result back to OpenAI
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
     }
-    
+
+    // Reset tool execution state
+    isExecutingTool = false
+    currentToolCallId = nil
+
     // Resume voice mode (unmute if it wasn't muted before)
     if !wasMuted {
       isMicrophoneMuted = false
