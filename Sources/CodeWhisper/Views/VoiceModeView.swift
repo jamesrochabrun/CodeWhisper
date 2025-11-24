@@ -146,7 +146,7 @@ public struct VoiceModeView: View {
   }
   
   private var audioVisualizer: some View {
-    SwiftUIAudioVisualizerView(conversationManager: conversationManager)
+    SimpleAudioVisualizerView(conversationManager: conversationManager)
       .frame(width: 200, height: 200)
   }
   
