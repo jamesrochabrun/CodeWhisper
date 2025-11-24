@@ -11,6 +11,7 @@ import SwiftOpenAI
 import AVFoundation
 import ScreenCaptureKit
 import AppKit
+import os
 
 // Actor to safely share state between MainActor and RealtimeActor
 actor ReadyState {
@@ -124,17 +125,14 @@ public final class ConversationManager {
     configuration: OpenAIRealtimeSessionConfiguration
   ) async {
     do {
-      print("ConversationManager.startConversation - Starting...")
-      
       // Request microphone permission
       let permissionGranted = await requestMicrophonePermission()
       guard permissionGranted else {
         errorMessage = "Microphone permission is required for voice mode"
         return
       }
-      
+
       // Create realtime session and audio controller on RealtimeActor
-      print("Creating realtime session...")
       
       // Capture the session and controller from RealtimeActor context
       let sessionAndController: (OpenAIRealtimeSession, AudioController) = try await Task { @RealtimeActor in
@@ -151,9 +149,8 @@ public final class ConversationManager {
       
       self.realtimeSession = session
       self.audioController = audioController
-      
+
       // Start streaming microphone to OpenAI
-      print("Starting microphone stream...")
       let readyState = ReadyState()
       
       micTask = Task { @RealtimeActor in
@@ -208,15 +205,14 @@ public final class ConversationManager {
             }
           }
         } catch {
-          print("Microphone stream error: \(error)")
+          AppLogger.error("Microphone stream error: \(error.localizedDescription)")
           await MainActor.run {
             self.errorMessage = "Microphone error: \(error.localizedDescription)"
           }
         }
       }
-      
+
       // Handle session messages
-      print("Starting session message handler...")
       sessionTask = Task { @RealtimeActor in
         for await message in session.receiver {
           guard !Task.isCancelled else { break }
@@ -233,13 +229,13 @@ public final class ConversationManager {
       // Update connection state
       isConnected = true
       isListening = true
-      
-      print("ConversationManager: Successfully started conversation")
-      
+
+      AppLogger.info("Conversation started")
+
     } catch {
       errorMessage = "Failed to start conversation: \(error.localizedDescription)"
       isConnected = false
-      print("ConversationManager error: \(error)")
+      AppLogger.error("Failed to start conversation: \(error.localizedDescription)")
     }
   }
   
@@ -252,23 +248,21 @@ public final class ConversationManager {
   ) async {
     switch message {
     case .error(let error):
-      print("Realtime API Error: \(error ?? "Unknown error")")
+      AppLogger.error("Realtime API error: \(error ?? "Unknown error")")
       await MainActor.run {
         self.errorMessage = error ?? "Unknown error"
         self.isConnected = false
       }
       session.disconnect()
-      
+
     case .sessionUpdated:
-      print("Session updated - OpenAI is ready")
       await MainActor.run {
         self.conversationState = .idle
       }
       // Optionally start AI speaking first
       await session.sendMessage(OpenAIRealtimeResponseCreate())
-      
+
     case .responseCreated:
-      print("Response created - AI is thinking")
       await readyState.setReady(true)
       await MainActor.run {
         self.conversationState = .aiThinking
@@ -291,16 +285,14 @@ public final class ConversationManager {
       
       // Play audio chunk from AI
       audioController.playPCM16Audio(base64String: base64Audio)
-      
+
     case .inputAudioBufferSpeechStarted:
-      print("User started speaking - interrupting playback")
       audioController.interruptPlayback()
       await MainActor.run {
         self.conversationState = .userSpeaking
       }
-      
+
     case .responseTranscriptDone(let transcript):
-      print("AI: \(transcript)")
       await MainActor.run {
         // Add AI message to conversation
         self.messages.append(ConversationMessage(
@@ -316,9 +308,8 @@ public final class ConversationManager {
           self.conversationState = .idle
         }
       }
-      
+
     case .inputAudioTranscriptionCompleted(let transcript):
-      print("User: \(transcript)")
       await MainActor.run {
         // Add user message to conversation
         self.messages.append(ConversationMessage(
@@ -331,54 +322,49 @@ public final class ConversationManager {
           self.conversationState = .idle
         }
       }
-      
+
     case .responseFunctionCallArgumentsDone(let name, let args, let callId):
-      print("Function call: \(name)(\(args)) - callId: \(callId)")
       await handleFunctionCall(name: name, arguments: args, callId: callId, session: session)
-      
+
     case .sessionCreated:
-      print("Session created")
-      
-    case .responseTranscriptDelta(let delta):
-      print("AI transcript delta: \(delta)")
-      
-    case .inputAudioBufferTranscript(let transcript):
-      print("Input audio transcript: \(transcript)")
-      
-    case .inputAudioTranscriptionDelta(let delta):
-      print("User transcript delta: \(delta)")
-      
+      break
+
+    case .responseTranscriptDelta:
+      break
+
+    case .inputAudioBufferTranscript:
+      break
+
+    case .inputAudioTranscriptionDelta:
+      break
+
       // MCP (Model Context Protocol) message handling
     case .mcpListToolsInProgress:
-      print("🔧 MCP: Tool discovery in progress...")
-      
-    case .mcpListToolsCompleted(let tools):
-      print("✅ MCP: Tool discovery completed successfully")
-      print("🔧 MCP: Available tools: \(tools)")
-      
+      break
+
+    case .mcpListToolsCompleted:
+      AppLogger.info("MCP tool discovery completed")
+
     case .mcpListToolsFailed(let error):
-      print("❌ MCP: Tool discovery FAILED")
-      print("❌ MCP Error: \(error ?? "Unknown error")")
+      AppLogger.error("MCP tool discovery failed: \(error ?? "Unknown error")")
       await MainActor.run {
         self.errorMessage = "MCP Error: \(error ?? "Unknown error")"
       }
       
     case .responseDone(let status, let statusDetails):
-      print("Response done with status: \(status)")
-      
       // Check for errors in the response
       if let statusDetails = statusDetails,
          let statusDetailsDict = statusDetails["status_details"] as? [String: Any],
          let error = statusDetailsDict["error"] as? [String: Any],
          let code = error["code"] as? String,
          let message = error["message"] as? String {
-        
-        print("❌ Response failed: [\(code)] \(message)")
-        
+
+        AppLogger.error("Response failed: [\(code)] \(message)")
+
         // Set error message for UI display
         await MainActor.run {
           self.errorMessage = "\(code): \(message)"
-          
+
           // Add error to conversation transcript
           self.messages.append(ConversationMessage(
             text: "Error: \(message)",
@@ -387,20 +373,18 @@ public final class ConversationManager {
             messageType: .regular
           ))
         }
-        
+
         // Disconnect on critical errors
         if code == "insufficient_quota" || code == "invalid_api_key" {
-          print("⚠️ Critical error detected, disconnecting session")
+          AppLogger.warning("Critical error detected, disconnecting session")
           await MainActor.run {
             self.isConnected = false
           }
           session.disconnect()
         }
-      } else if status == "completed" {
-        print("✅ Response completed successfully")
       } else if status == "failed" {
         // Failed status but no detailed error information
-        print("❌ Response failed without detailed error information")
+        AppLogger.error("Response failed without detailed error information")
         await MainActor.run {
           self.errorMessage = "Response failed: \(status)"
         }
@@ -442,12 +426,10 @@ public final class ConversationManager {
         timestamp: Date(),
         imageBase64URL: imageBase64URL
       ))
-      
-      print("Image sent successfully with text: \(text)")
-      
+
     } catch {
       errorMessage = "Failed to send image: \(error.localizedDescription)"
-      print("Error sending image: \(error)")
+      AppLogger.error("Failed to send image: \(error.localizedDescription)")
     }
   }
   
@@ -459,7 +441,6 @@ public final class ConversationManager {
     }
     
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      print("Ignoring empty text message")
       return
     }
     
@@ -486,37 +467,31 @@ public final class ConversationManager {
         isUser: true,
         timestamp: Date()
       ))
-      
-      print("Text message sent: \(text)")
-      
+
     } catch {
       errorMessage = "Failed to send text: \(error.localizedDescription)"
-      print("Error sending text: \(error)")
+      AppLogger.error("Failed to send text: \(error.localizedDescription)")
     }
   }
   
   /// Send function call output back to OpenAI Realtime API
   private func sendFunctionCallOutput(callId: String, output: String, session: OpenAIRealtimeSession) async {
-    print("📤 Sending function call output for callId: \(callId)")
-    
     do {
       // Create function call output using the custom struct
       let functionOutput = FunctionToolCallOutput(callId: callId, output: output)
       let itemCreateMessage = RealtimeConversationItemCreateWithFunctionOutput(item: functionOutput)
-      
+
       // Send to session on RealtimeActor
       try await Task { @RealtimeActor in
         // Send the function output as a message
         await session.sendMessage(itemCreateMessage)
-        
+
         // Trigger AI response so it speaks the result
         await session.sendMessage(OpenAIRealtimeResponseCreate())
       }.value
-      
-      print("✅ Function call output sent successfully")
-      
+
     } catch {
-      print("❌ Error sending function call output: \(error)")
+      AppLogger.error("Failed to send function call output: \(error.localizedDescription)")
     }
   }
   
@@ -533,17 +508,13 @@ public final class ConversationManager {
   /// Toggle microphone mute state
   public func toggleMicrophoneMute() {
     isMicrophoneMuted.toggle()
-    print("Microphone \(isMicrophoneMuted ? "muted" : "unmuted")")
   }
 
   /// Cancel the current tool execution and send interrupted response to OpenAI
   public func cancelToolExecution() {
     guard isExecutingTool else {
-      print("⚠️ No tool execution to cancel")
       return
     }
-
-    print("🛑 Cancelling tool execution...")
 
     // Cancel the tool execution task
     toolExecutionTask?.cancel()
@@ -570,7 +541,6 @@ public final class ConversationManager {
     // Unmute microphone if it was muted for tool execution
     if isMicrophoneMuted {
       isMicrophoneMuted = false
-      print("🎤 Resumed microphone after cancellation")
     }
 
     // Add interrupted message to conversation
@@ -581,7 +551,7 @@ public final class ConversationManager {
       messageType: .claudeCodeError
     ))
 
-    print("✅ Tool execution cancelled")
+    AppLogger.info("Tool execution cancelled")
   }
 
   /// Set settings manager for working directory configuration
@@ -595,32 +565,28 @@ public final class ConversationManager {
     let manager = ClaudeCodeManager()
     manager.initialize(executor: executor)
     self.claudeCodeManager = manager
-    print("✅ ConversationManager: Claude Code executor set successfully")
+    AppLogger.info("Claude Code executor initialized")
   }
-  
+
   /// Handle function/tool calls from the AI
   private func handleFunctionCall(name: String, arguments: String, callId: String, session: OpenAIRealtimeSession) async {
-    print("📸 Handling function call: \(name)")
-    
     switch name {
     case "take_screenshot":
       await handleScreenshotTool(arguments: arguments, callId: callId)
-      
+
     case "execute_claude_code":
       await handleClaudeCodeTool(arguments: arguments, callId: callId, session: session)
-      
+
     default:
-      print("⚠️ Unknown function call: \(name)")
+      AppLogger.warning("Unknown function call: \(name)")
     }
   }
   
   /// Handle screenshot tool execution
   private func handleScreenshotTool(arguments: String, callId: String) async {
-    print("📸 Executing take_screenshot tool with arguments: \(arguments)")
-    
     // Parse arguments
     guard let args = parseScreenshotArguments(arguments) else {
-      print("❌ Failed to parse screenshot arguments")
+      AppLogger.warning("Failed to parse screenshot arguments")
       return
     }
     
@@ -640,7 +606,7 @@ public final class ConversationManager {
     // Check if capture was successful
     guard let capturedImage = screenshotCapture.capturedImage else {
       let error = screenshotCapture.errorMessage ?? "Screenshot capture failed"
-      print("❌ \(error)")
+      AppLogger.error("Screenshot capture failed: \(error)")
       await MainActor.run {
         self.warningMessage = error
       }
@@ -649,7 +615,7 @@ public final class ConversationManager {
 
     // Convert to base64
     guard let base64URL = screenshotCapture.convertToBase64DataURL(capturedImage) else {
-      print("❌ Failed to convert screenshot to base64")
+      AppLogger.error("Failed to convert screenshot to base64")
       await MainActor.run {
         self.warningMessage = "Failed to process screenshot"
       }
@@ -662,8 +628,6 @@ public final class ConversationManager {
        let pngData = bitmapImage.representation(using: .png, properties: [:]) {
       lastCapturedScreenshot = pngData
     }
-
-    print("✅ Screenshot captured successfully")
     
     // Send the screenshot as an image message
     let description = if captureType == "window", let app = args["app_name"] as? String {
@@ -721,28 +685,24 @@ public final class ConversationManager {
       ) else {
         let titleInfo = windowTitle.map { " with title '\($0)'" } ?? ""
         screenshotCapture.errorMessage = "No matching window found for app '\(appName)'\(titleInfo)"
-        print("❌ \(screenshotCapture.errorMessage ?? "")")
+        AppLogger.warning(screenshotCapture.errorMessage ?? "Window not found")
         return
       }
-      
-      print("✅ Found matching window: \(matchedWindow.owningApplication?.applicationName ?? "") - \(matchedWindow.title ?? "")")
-      
+
       // Capture the matched window
       await screenshotCapture.captureWindow(matchedWindow)
-      
+
     } catch {
       screenshotCapture.errorMessage = "Failed to enumerate windows: \(error.localizedDescription)"
-      print("❌ \(screenshotCapture.errorMessage ?? "")")
+      AppLogger.error(screenshotCapture.errorMessage ?? "Window enumeration failed")
     }
   }
   
   /// Handle Claude Code tool execution
   private func handleClaudeCodeTool(arguments: String, callId: String, session: OpenAIRealtimeSession) async {
-    print("🤖 Executing execute_claude_code tool...")
-    
     // Parse arguments to extract task
     guard let task = parseClaudeCodeArguments(arguments) else {
-      print("❌ Failed to parse Claude Code arguments")
+      AppLogger.warning("Failed to parse Claude Code arguments")
       let errorMessage = "Error: Could not parse Claude Code task from arguments"
       messages.append(ConversationMessage(
         text: errorMessage,
@@ -750,17 +710,15 @@ public final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeError
       ))
-      
+
       // Send error result back to OpenAI
       await sendFunctionCallOutput(callId: callId, output: errorMessage, session: session)
       return
     }
-    
-    print("🤖 Claude Code task: \(task)")
-    
+
     // Check if Claude Code is initialized
     guard let claudeCodeManager = claudeCodeManager else {
-      print("❌ Claude Code not initialized")
+      AppLogger.error("Claude Code not initialized")
       let errorMessage = "Error: Claude Code is not initialized. Please configure your API key and working directory."
       messages.append(ConversationMessage(
         text: errorMessage,
@@ -782,7 +740,6 @@ public final class ConversationManager {
     let wasMuted = isMicrophoneMuted
     if !wasMuted {
       isMicrophoneMuted = true
-      print("Paused voice mode for Code execution")
     }
     
     // Show Claude Code is processing
@@ -813,7 +770,6 @@ public final class ConversationManager {
           // Add new progress updates to conversation as they arrive
           if currentProgressCount > lastProgressCount {
             let newProgress = claudeCodeManager.progressUpdates[lastProgressCount...]
-            print("📨 ConversationManager: Adding \(newProgress.count) new progress update(s)")
 
             await MainActor.run {
               for progress in newProgress {
@@ -847,16 +803,14 @@ public final class ConversationManager {
 
       // Check if cancelled during execution
       guard isExecutingTool else {
-        print("🛑 Tool execution was cancelled")
         return
       }
 
       // Process any remaining progress updates
       let processedCount = messages.filter({ $0.messageType == .claudeCodeProgress }).count
       let totalProgressCount = claudeCodeManager.progressUpdates.count
-      
+
       if processedCount < totalProgressCount {
-        print("📊 Processing \(totalProgressCount - processedCount) remaining progress updates")
         let remainingProgress = claudeCodeManager.progressUpdates[processedCount...]
         for progress in remainingProgress {
           messages.append(ConversationMessage(
@@ -866,8 +820,6 @@ public final class ConversationManager {
             messageType: .claudeCodeProgress
           ))
         }
-      } else {
-        print("📊 All \(totalProgressCount) progress updates already processed")
       }
       
       // Add final result
@@ -877,20 +829,19 @@ public final class ConversationManager {
         timestamp: Date(),
         messageType: .claudeCodeResult
       ))
-      
-      print("✅ Claude Code task completed successfully")
-      
+
+      AppLogger.info("Claude Code task completed")
+
       // Send result back to OpenAI so it can speak it
       await sendFunctionCallOutput(callId: callId, output: result, session: session)
-      
+
     } catch {
       // Check if cancelled during execution
       guard isExecutingTool else {
-        print("🛑 Tool execution was cancelled")
         return
       }
 
-      print("❌ Claude Code task failed: \(error)")
+      AppLogger.error("Claude Code task failed: \(error.localizedDescription)")
       let errorMessage = "Error Claude Code: \(error.localizedDescription)"
       messages.append(ConversationMessage(
         text: errorMessage,
@@ -910,7 +861,6 @@ public final class ConversationManager {
     // Resume voice mode (unmute if it wasn't muted before)
     if !wasMuted {
       isMicrophoneMuted = false
-      print("🤖 Resumed voice mode after Claude Code execution")
     }
   }
   
@@ -933,26 +883,24 @@ public final class ConversationManager {
   }
   
   public func stopConversation() {
-    print("ConversationManager.stopConversation - Stopping...")
-    
     // Cancel tasks
     sessionTask?.cancel()
     micTask?.cancel()
     sessionTask = nil
     micTask = nil
-    
+
     // Stop audio controller and disconnect session on RealtimeActor
     let audioController = self.audioController
     let realtimeSession = self.realtimeSession
-    
+
     Task { @RealtimeActor in
       audioController?.stop()
       realtimeSession?.disconnect()
     }
-    
+
     self.audioController = nil
     self.realtimeSession = nil
-    
+
     // Reset all state
     isConnected = false
     isListening = false
@@ -969,40 +917,29 @@ public final class ConversationManager {
     conversationState = .idle
     errorMessage = nil
     messages = []
-    
-    print("ConversationManager: Conversation stopped")
+
+    AppLogger.info("Conversation stopped")
   }
   
   private func requestMicrophonePermission() async -> Bool {
-    print("Checking microphone permission...")
-    
 #if os(macOS)
     let currentPermission = await AVAudioApplication.shared.recordPermission
-    print("Current permission: \(currentPermission.rawValue)")
-    
+
     if currentPermission == .granted {
-      print("Microphone permission: already granted")
       return true
     }
-    
-    print("Requesting microphone permission...")
-    let granted = await AVAudioApplication.requestRecordPermission()
-    print("Microphone permission: \(granted ? "granted" : "denied")")
-    return granted
+
+    return await AVAudioApplication.requestRecordPermission()
 #else
     // iOS uses AVAudioSession
     switch AVAudioSession.sharedInstance().recordPermission {
     case .granted:
-      print("Microphone permission: already granted")
       return true
     case .denied:
-      print("Microphone permission: denied")
       return false
     case .undetermined:
-      print("Requesting microphone permission...")
       return await withCheckedContinuation { continuation in
         AVAudioSession.sharedInstance().requestRecordPermission { granted in
-          print("Microphone permission: \(granted ? "granted" : "denied")")
           continuation.resume(returning: granted)
         }
       }

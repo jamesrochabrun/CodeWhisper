@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftOpenAI
+import os
 
 /// Manages OpenAI service and realtime session configuration
 @Observable
@@ -141,8 +142,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       ]
     )
     tools.append(.function(screenshotTool))
-    print("🔧 Function Tools: Added 'take_screenshot' function tool")
-    
+
     // Add Claude Code execution function tool
     let claudeCodeTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
       name: "execute_claude_code",
@@ -159,24 +159,10 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       ]
     )
     tools.append(.function(claudeCodeTool))
-    print("🔧 Function Tools: Added 'execute_claude_code' function tool")
-    
+
     // Add MCP server tools if configured
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
-      print("🔧 MCP: Configuring \(mcpManager.servers.count) server(s)")
-      
       let mcpTools = mcpManager.servers.map { serverConfig in
-        print("🔧 MCP Server Config:")
-        print("   - Label: \(serverConfig.label)")
-        print("   - URL: \(serverConfig.serverUrl)")
-        if let auth = serverConfig.authorization {
-          print("   - Auth: ✓ present (length: \(auth.count) chars)")
-          print("   - Auth token: \(auth.prefix(8))...\(auth.suffix(4))")
-        } else {
-          print("   - Auth: ✗ none")
-        }
-        print("   - Approval: \(serverConfig.requireApproval)")
-        
         let mcpTool = Tool.MCPTool(
           serverLabel: serverConfig.label,
           authorization: serverConfig.authorization,
@@ -185,14 +171,11 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
         )
         return OpenAIRealtimeSessionConfiguration.RealtimeTool.mcp(mcpTool)
       }
-      
+
       tools.append(contentsOf: mcpTools)
-      print("🔧 MCP: Added \(mcpTools.count) MCP tool(s)")
-    } else {
-      print("🔧 MCP: No servers configured")
     }
-    
-    print("🔧 Total tools configured: \(tools.count)")
+
+    AppLogger.info("Tools configured: \(tools.count)")
     
     let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
@@ -206,14 +189,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
-    
-    // Log the encoded JSON for debugging
-    if let jsonData = try? JSONEncoder().encode(config),
-       let jsonString = String(data: jsonData, encoding: .utf8) {
-      print("🔧 MCP: Session configuration JSON:")
-      print(jsonString)
-    }
-    
+
     return config
   }
 }
