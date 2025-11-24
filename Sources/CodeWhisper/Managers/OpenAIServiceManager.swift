@@ -31,7 +31,7 @@ public final class OpenAIServiceManager {
   // Conversation settings
   public var instructions: String = """
 You are a focused coding assistant that prioritizes execution over explanation.
-You always speak in english
+
 ## Core Behavior
 - Start each session with a brief greeting, then listen for the user's requirements
 - Keep responses concise and action-oriented
