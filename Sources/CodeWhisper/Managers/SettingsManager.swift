@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import os
 
 @Observable
 @MainActor
@@ -42,14 +43,12 @@ public final class SettingsManager {
   public var workingDirectory: String {
     didSet {
       UserDefaults.standard.set(workingDirectory, forKey: "claude_code_working_directory")
-      print("SettingsManager: Working directory updated to: \(workingDirectory)")
     }
   }
 
   public var bypassPermissions: Bool {
     didSet {
       UserDefaults.standard.set(bypassPermissions, forKey: "claude_code_bypass_permissions")
-      print("SettingsManager: Bypass permissions updated to: \(bypassPermissions)")
     }
   }
 
@@ -62,17 +61,17 @@ public final class SettingsManager {
     if let envKey = ProcessInfo.processInfo.environment[Self.apiKeyEnvVar], !envKey.isEmpty {
       let trimmedKey = envKey.trimmingCharacters(in: .whitespacesAndNewlines)
       self.apiKey = trimmedKey
-      print("SettingsManager init - Using API key from environment variable: \(Self.apiKeyEnvVar)")
+      AppLogger.info("Using API key from environment variable")
     }
     // Priority 2: Check Keychain
     else if let keychainKey = KeychainManager.shared.retrieve(forKey: Self.keychainKey), !keychainKey.isEmpty {
       self.apiKey = keychainKey
-      print("SettingsManager init - Using API key from Keychain")
+      AppLogger.info("Using API key from Keychain")
     }
     // No key found
     else {
       self.apiKey = ""
-      print("SettingsManager init - No API key found")
+      AppLogger.warning("No API key found")
     }
 
     // Load working directory or use Documents folder as default
@@ -81,10 +80,6 @@ public final class SettingsManager {
 
     // Load bypass permissions setting (default: false)
     self.bypassPermissions = UserDefaults.standard.bool(forKey: "claude_code_bypass_permissions")
-
-    print("SettingsManager init - API Key Source: \(apiKeySource)")
-    print("SettingsManager init - Working directory: \(workingDirectory)")
-    print("SettingsManager init - Bypass permissions: \(bypassPermissions)")
   }
 
   public func clearAPIKey() {

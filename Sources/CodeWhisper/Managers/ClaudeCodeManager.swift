@@ -8,6 +8,7 @@
 
 import Foundation
 import Observation
+import os
 
 /// Represents the current state of Claude Code execution
 enum ClaudeCodeState: Equatable {
@@ -60,7 +61,7 @@ public final class ClaudeCodeManager {
   /// Initialize with a ClaudeCodeExecutor implementation
   public func initialize(executor: ClaudeCodeExecutor) {
     self.executor = executor
-    print("ClaudeCodeManager: Initialized with executor")
+    AppLogger.info("Initialized with executor")
   }
 
   // MARK: - Execution
@@ -68,13 +69,9 @@ public final class ClaudeCodeManager {
   /// Execute a Claude Code task with streaming progress
   public func executeTask(_ task: String, context: TaskContext? = nil) async throws -> String {
     guard let executor = executor else {
-      print("❌ ClaudeCodeManager: Not initialized")
+      AppLogger.error("Not initialized")
       throw ClaudeCodeError.notInitialized
     }
-
-    print("🚀 ClaudeCodeManager: Executing task: \(task)")
-    print("📊 ClaudeCodeManager: Executor isExecuting: \(executor.isExecuting)")
-    print("📊 ClaudeCodeManager: Message count: \(executor.messages.count)")
 
     // Reset state
     state = .processing
@@ -84,11 +81,8 @@ public final class ClaudeCodeManager {
     // Cancel any existing task
     currentTask?.cancel()
 
-    print("📤 ClaudeCodeManager: Sending task to executor...")
-
     // Start observation task in background - it will monitor progress
     currentTask = Task {
-      print("⏳ ClaudeCodeManager: Starting real-time message observation...")
       await observeMessagesRealTime(executor: executor)
     }
 
@@ -96,7 +90,6 @@ public final class ClaudeCodeManager {
     // This is the source of truth - we await the executor's completion
     do {
       let result = try await executor.executeTask(task, context: context)
-      print("✅ ClaudeCodeManager: Task completed with result content length: \(result.content.count)")
 
       // Cancel observation since execution is complete
       currentTask?.cancel()
@@ -108,7 +101,7 @@ public final class ClaudeCodeManager {
       // Return the result content directly from the executor
       return result.content
     } catch {
-      print("❌ ClaudeCodeManager: Task failed with error: \(error)")
+      AppLogger.error("Task failed: \(error.localizedDescription)")
 
       // Cancel observation
       currentTask?.cancel()
@@ -143,7 +136,6 @@ public final class ClaudeCodeManager {
       // Process new messages
       if currentMessages.count > lastProcessedCount {
         let newMessages = currentMessages[lastProcessedCount...]
-        print("📨 ClaudeCodeManager: Processing \(newMessages.count) new message(s)")
 
         await MainActor.run {
           for message in newMessages {
@@ -162,7 +154,6 @@ public final class ClaudeCodeManager {
         let previousHash = lastMessageContentHashes[message.id]
 
         if previousHash != currentHash {
-          print("📨 ClaudeCodeManager: Content updated for message \(message.id)")
           await MainActor.run {
             self.handleStreamingMessage(message)
             lastMessageContentHashes[message.id] = currentHash
@@ -173,26 +164,17 @@ public final class ClaudeCodeManager {
       // Only exit when execution has started AND completed
       // This prevents exiting before execution begins
       if hasStarted && !isExecuting {
-        print("✅ ClaudeCodeManager: Observation complete after \(pollAttempts) polls")
-        print("📊 ClaudeCodeManager: Final message count: \(currentMessages.count)")
         break
       }
 
       // Poll every 50ms for very responsive streaming
       try? await Task.sleep(for: .milliseconds(50))
       pollAttempts += 1
-
-      // Log every 100 attempts (every 5 seconds)
-      if pollAttempts % 100 == 0 {
-        print("⏳ ClaudeCodeManager: Still streaming... (\(pollAttempts) polls, isExecuting: \(isExecuting), hasStarted: \(hasStarted), messages: \(currentMessages.count))")
-      }
     }
 
-    // Log if cancelled or timed out
-    if Task.isCancelled {
-      print("🛑 ClaudeCodeManager: Observation cancelled after \(pollAttempts) polls")
-    } else if pollAttempts >= maxPollAttempts {
-      print("⏰ ClaudeCodeManager: Observation timeout after \(pollAttempts) polls")
+    // Log if timed out
+    if pollAttempts >= maxPollAttempts {
+      AppLogger.warning("Observation timeout after \(pollAttempts) polls")
     }
   }
 
@@ -200,7 +182,6 @@ public final class ClaudeCodeManager {
 
   /// Handle streaming messages from executor
   private func handleStreamingMessage(_ message: CodeExecutionMessage) {
-    print("📨 Processing message type: \(message.type), role: \(message.role)")
 
     switch message.type {
     case .thinking:
@@ -342,7 +323,6 @@ public final class ClaudeCodeManager {
       timestamp: Date()
     )
     progressUpdates.append(progress)
-    print("ClaudeCodeManager Progress: \(content)")
   }
 
   private func generateResultSummary(from messages: [CodeExecutionMessage]) -> String {

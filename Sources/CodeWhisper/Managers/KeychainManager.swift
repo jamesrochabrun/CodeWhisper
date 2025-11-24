@@ -7,6 +7,7 @@
 
 import Foundation
 import Security
+import os
 
 /// Secure storage manager for sensitive data using the macOS/iOS Keychain
 @MainActor
@@ -26,7 +27,7 @@ public final class KeychainManager {
     @discardableResult
     public func save(_ value: String, forKey key: String) -> Bool {
         guard let data = value.data(using: .utf8) else {
-            print("KeychainManager: Failed to convert string to data")
+            AppLogger.error("Failed to convert string to data for key: \(key)")
             return false
         }
 
@@ -44,10 +45,9 @@ public final class KeychainManager {
         let status = SecItemAdd(query as CFDictionary, nil)
 
         if status == errSecSuccess {
-            print("KeychainManager: Successfully saved value for key: \(key)")
             return true
         } else {
-            print("KeychainManager: Failed to save value for key: \(key), status: \(status)")
+            AppLogger.error("Failed to save keychain value for key: \(key), status: \(status)")
             return false
         }
     }
@@ -70,13 +70,11 @@ public final class KeychainManager {
         if status == errSecSuccess,
            let data = result as? Data,
            let value = String(data: data, encoding: .utf8) {
-            print("KeychainManager: Successfully retrieved value for key: \(key)")
             return value
         } else if status == errSecItemNotFound {
-            print("KeychainManager: No value found for key: \(key)")
             return nil
         } else {
-            print("KeychainManager: Failed to retrieve value for key: \(key), status: \(status)")
+            AppLogger.error("Failed to retrieve keychain value for key: \(key), status: \(status)")
             return nil
         }
     }
@@ -95,10 +93,9 @@ public final class KeychainManager {
         let status = SecItemDelete(query as CFDictionary)
 
         if status == errSecSuccess || status == errSecItemNotFound {
-            print("KeychainManager: Successfully deleted value for key: \(key)")
             return true
         } else {
-            print("KeychainManager: Failed to delete value for key: \(key), status: \(status)")
+            AppLogger.error("Failed to delete keychain value for key: \(key), status: \(status)")
             return false
         }
     }

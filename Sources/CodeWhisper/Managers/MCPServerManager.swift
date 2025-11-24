@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import os
 
 /// Configuration for a single MCP server
 public struct MCPServerConfig: Codable, Identifiable, Equatable {
@@ -45,15 +46,13 @@ public final class MCPServerManager {
       if !seenLabels.contains(server.label) {
         seenLabels.insert(server.label)
         uniqueServers.append(server)
-      } else {
-        print("⚠️ Removing duplicate MCP server with label: \(server.label)")
       }
     }
 
     if uniqueServers.count != originalCount {
       servers = uniqueServers
       saveServers()
-      print("✅ Removed \(originalCount - uniqueServers.count) duplicate server(s)")
+      AppLogger.warning("Removed \(originalCount - uniqueServers.count) duplicate MCP server(s)")
     }
   }
 
@@ -62,7 +61,7 @@ public final class MCPServerManager {
   public func addServer(_ config: MCPServerConfig) {
     // Check for duplicate label
     if servers.contains(where: { $0.label == config.label }) {
-      print("⚠️ Cannot add server: label '\(config.label)' already exists")
+      AppLogger.warning("Cannot add MCP server: label '\(config.label)' already exists")
       return
     }
     servers.append(config)
@@ -93,7 +92,7 @@ public final class MCPServerManager {
       let data = try JSONEncoder().encode(servers)
       UserDefaults.standard.set(data, forKey: userDefaultsKey)
     } catch {
-      print("Failed to save MCP servers: \(error)")
+      AppLogger.error("Failed to save MCP servers: \(error.localizedDescription)")
     }
   }
 
@@ -107,7 +106,7 @@ public final class MCPServerManager {
     do {
       servers = try JSONDecoder().decode([MCPServerConfig].self, from: data)
     } catch {
-      print("Failed to load MCP servers: \(error)")
+      AppLogger.error("Failed to load MCP servers: \(error.localizedDescription)")
       servers = []
     }
   }
