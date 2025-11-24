@@ -8,12 +8,12 @@
 import SwiftUI
 
 public struct VoiceModeView: View {
-
+  
   public enum PresentationMode {
     case standalone
     case presented
   }
-
+  
   @Environment(OpenAIServiceManager.self) private var serviceManager
   @Environment(SettingsManager.self) private var settingsManager
   @Environment(\.dismiss) private var dismiss
@@ -23,10 +23,10 @@ public struct VoiceModeView: View {
   @State private var showingSettings = false
   @State private var textInput: String = ""
   @FocusState private var isTextFieldFocused: Bool
-
+  
   private let presentationMode: PresentationMode
   private let executor: ClaudeCodeExecutor?
-
+  
   public init(presentationMode: PresentationMode = .standalone, executor: ClaudeCodeExecutor? = nil) {
     self.presentationMode = presentationMode
     self.executor = executor
@@ -43,8 +43,12 @@ public struct VoiceModeView: View {
         }
         audioVisualizer
         conversationTranscript
+        if conversationManager.isExecutingTool {
+          toolExecutionIndicator
+        }
         textInputSection
       }
+      .animation(.easeInOut, value: conversationManager.isExecutingTool)
       .animation(.easeInOut, value: conversationManager.errorMessage == nil)
     }
     .task {
@@ -114,7 +118,7 @@ public struct VoiceModeView: View {
     .help(conversationManager.isMicrophoneMuted ? "Unmute microphone (⌘M)" : "Mute microphone (⌘M)")
     .keyboardShortcut("m", modifiers: .command)
   }
-
+  
   private var settingsButton: some View {
     Button {
       showingSettings = true
@@ -126,7 +130,7 @@ public struct VoiceModeView: View {
     .buttonStyle(.plain)
     .help("Settings")
   }
-
+  
   private var closeButton: some View {
     Button {
       conversationManager.stopConversation()
@@ -140,7 +144,7 @@ public struct VoiceModeView: View {
     .help("Close (⌘W)")
     .keyboardShortcut("w", modifiers: .command)
   }
-
+  
   private var audioVisualizer: some View {
     SwiftUIAudioVisualizerView(conversationManager: conversationManager)
       .frame(width: 200, height: 200)
@@ -150,6 +154,25 @@ public struct VoiceModeView: View {
     ConversationTranscriptView(messages: conversationManager.messages)
       .frame(height: 150)
       .frame(maxWidth: 500)
+  }
+  
+  private var toolExecutionIndicator: some View {
+    Button {
+      conversationManager.cancelToolExecution()
+    } label: {
+      Text("Stop tool execution")
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(.white.opacity(0.9))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+          Capsule()
+            .fill(Color.orange.opacity(0.6))
+        )
+    }
+    .buttonStyle(.plain)
+    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    .animation(.easeInOut(duration: 0.2), value: conversationManager.isExecutingTool)
   }
   
   private var textInputSection: some View {
@@ -290,16 +313,16 @@ public struct VoiceModeView: View {
       isInitializing = false
       return
     }
-
+    
     isInitializing = true
     conversationManager.setSettingsManager(settingsManager)
-
+    
     // Set the ClaudeCodeExecutor if provided
     // This allows integration with existing Claude Code configurations
     if let executor = executor {
       conversationManager.setClaudeCodeExecutor(executor)
     }
-
+    
     let configuration = serviceManager.createSessionConfiguration()
     await conversationManager.startConversation(service: service, configuration: configuration)
     isInitializing = false

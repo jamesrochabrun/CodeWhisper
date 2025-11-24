@@ -85,8 +85,6 @@ public struct SwiftUIAudioVisualizerView: View {
     }
   }
   
-  
-  
   private func drawAmbientGlow(
     context: inout GraphicsContext,
     center: CGPoint,
@@ -122,8 +120,6 @@ public struct SwiftUIAudioVisualizerView: View {
     context.fill(circlePath, with: radialGradient)
   }
   
-  
-  
   private func drawRotatingArcs(
     context: inout GraphicsContext,
     center: CGPoint,
@@ -135,13 +131,15 @@ public struct SwiftUIAudioVisualizerView: View {
     let baseRadius = maxRadius * 0.55
     
     for i in 0..<arcCount {
-      let rotationSpeed = 0.8 + Double(i) * 0.3
-      let rotation = time * rotationSpeed + Double(i) * (.pi * 2 / 3)
+      // Same rotation speed for all arcs
+      let rotationSpeed = 0.8
+      // Evenly space arcs around the circle (180 degrees apart for 2 arcs)
+      let angleOffset = Double(i) * (.pi * 2 / Double(arcCount))
+      let rotation = time * rotationSpeed + angleOffset
       
-      // Enhanced dynamic radius based on audio - bounce effect
-      let radiusOffset = sin(time * 2 + Double(i)) * maxRadius * 0.05 * audioLevel
+      // Enhanced dynamic radius based on audio - bounce effect (same for all arcs)
       let audioBounce = maxRadius * 0.15 * audioLevel // Increased bounce range
-      let arcRadius = baseRadius + radiusOffset + audioBounce
+      let arcRadius = baseRadius + audioBounce
       
       // Arc parameters - arc length increases with audio
       let baseArcLength = .pi * 0.5
