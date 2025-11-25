@@ -121,7 +121,7 @@ public final class ClaudeCodeManager {
     var lastProcessedCount = 0
     var lastMessageContentHashes: [UUID: Int] = [:]  // Track content changes
     var pollAttempts = 0
-    let maxPollAttempts = 2400 // 2 minutes with 50ms intervals
+    let maxPollAttempts = 36000 // 30 minutes with 50ms intervals
     var hasStarted = false  // Track if execution has started
 
     while !Task.isCancelled && pollAttempts < maxPollAttempts {
