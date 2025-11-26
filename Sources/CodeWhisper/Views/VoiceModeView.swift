@@ -160,7 +160,7 @@ public struct VoiceModeView: View {
     Button {
       conversationManager.cancelToolExecution()
     } label: {
-      Text("Stop tool execution")
+      Text("Stop process")
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(.white.opacity(0.9))
         .padding(.horizontal, 14)

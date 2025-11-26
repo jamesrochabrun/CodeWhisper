@@ -389,6 +389,31 @@ public final class ConversationManager {
           self.errorMessage = "Response failed: \(status)"
         }
       }
+
+    // Text streaming (text-only responses) - not used since primary focus is audio
+    case .responseTextDelta:
+      break
+
+    case .responseTextDone:
+      break
+
+    // Output item lifecycle - not needed for current audio-focused implementation
+    case .responseOutputItemAdded:
+      break
+
+    case .responseOutputItemDone:
+      break
+
+    // Content part lifecycle - not needed for current audio-focused implementation
+    case .responseContentPartAdded:
+      break
+
+    case .responseContentPartDone:
+      break
+
+    // Conversation item creation - not needed for current implementation
+    case .conversationItemCreated:
+      break
     }
   }
   
