@@ -14,15 +14,15 @@ import os
 @MainActor
 public final class OpenAIServiceManager {
   // MARK: - Service
-
+  
   private(set) var service: OpenAIService?
   private var currentApiKey: String = ""
-
+  
   // MCP Server Manager
   private var mcpServerManager: MCPServerManager?
-
+  
   public init() {}
-
+  
   // MARK: - Configuration Properties
   
   // Model and transcription
@@ -88,14 +88,16 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
     let cleanApiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     
     // Only recreate service if API key actually changed
-    guard cleanApiKey != currentApiKey else { return }
+    guard cleanApiKey != currentApiKey else {
+      return
+    }
     
     currentApiKey = cleanApiKey
     
     if cleanApiKey.isEmpty {
       service = nil
     } else {
-      service = OpenAIServiceFactory.service(apiKey: cleanApiKey)
+      service = OpenAIServiceFactory.service(apiKey: cleanApiKey, debugEnabled: true)
     }
   }
   
@@ -142,7 +144,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       ]
     )
     tools.append(.function(screenshotTool))
-
+    
     // Add Claude Code execution function tool
     let claudeCodeTool = OpenAIRealtimeSessionConfiguration.FunctionTool(
       name: "execute_claude_code",
@@ -159,7 +161,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       ]
     )
     tools.append(.function(claudeCodeTool))
-
+    
     // Add MCP server tools if configured
     if let mcpManager = mcpServerManager, !mcpManager.servers.isEmpty {
       let mcpTools = mcpManager.servers.map { serverConfig in
@@ -171,10 +173,10 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
         )
         return OpenAIRealtimeSessionConfiguration.RealtimeTool.mcp(mcpTool)
       }
-
+      
       tools.append(contentsOf: mcpTools)
     }
-
+    
     AppLogger.info("Tools configured: \(tools.count)")
     
     let config = OpenAIRealtimeSessionConfiguration(
@@ -189,7 +191,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
-
+    
     return config
   }
 }
