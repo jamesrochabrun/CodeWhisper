@@ -15,7 +15,7 @@ import os
 public final class OpenAIServiceManager {
   // MARK: - Service
   
-  private(set) var service: OpenAIService?
+  public private(set) var service: OpenAIService?
   private var currentApiKey: String = ""
   
   // MCP Server Manager

@@ -18,6 +18,7 @@ public struct SettingsView: View {
       Form {
         APIKeySection()
         WorkingDirectorySection()
+        TTSSettingsSection()
         MCPServersSection()
         DangerZoneSection()
       }
@@ -176,6 +177,52 @@ private struct WorkingDirectoryRow: View {
       }
     }
     .padding(.vertical, 4)
+  }
+}
+
+// MARK: - TTS Settings Section
+
+private struct TTSSettingsSection: View {
+  @Environment(SettingsManager.self) private var settings
+
+  var body: some View {
+    @Bindable var settings = settings
+
+    Section {
+      // Provider Picker
+      Picker("Provider", selection: $settings.ttsProvider) {
+        ForEach(TTSProvider.allCases, id: \.self) { provider in
+          Text(provider.displayName).tag(provider)
+        }
+      }
+      .pickerStyle(.segmented)
+
+      // OpenAI-specific settings
+      if settings.ttsProvider == .openAI {
+        Picker("Voice", selection: $settings.openAITTSVoice) {
+          ForEach(OpenAITTSVoice.allCases, id: \.self) { voice in
+            Text(voice.displayName).tag(voice)
+          }
+        }
+
+        Picker("Quality", selection: $settings.openAITTSModel) {
+          ForEach(OpenAITTSModel.allCases, id: \.self) { model in
+            Text(model.displayName).tag(model)
+          }
+        }
+      }
+    } header: {
+      Text("Text-to-Speech")
+    } footer: {
+      VStack(alignment: .leading, spacing: 4) {
+        if settings.ttsProvider == .apple {
+          Text("Apple TTS works offline and is free, but voices are less natural.")
+        } else {
+          Text("OpenAI TTS provides natural-sounding voices but requires an API key and incurs costs.")
+        }
+      }
+      .font(.caption)
+    }
   }
 }
 

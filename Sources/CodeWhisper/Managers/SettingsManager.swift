@@ -15,6 +15,7 @@ public final class SettingsManager {
 
   private static let apiKeyEnvVar = "OPENAI_API_KEY"
   private static let keychainKey = "openai_api_key"
+  private static let ttsConfigKey = "tts_configuration"
 
   /// The current API key - either from environment variable or stored in Keychain
   public var apiKey: String {
@@ -52,6 +53,39 @@ public final class SettingsManager {
     }
   }
 
+  /// TTS configuration
+  public var ttsConfiguration: TTSConfiguration {
+    didSet {
+      saveTTSConfiguration()
+    }
+  }
+
+  // MARK: - TTS Convenience Properties
+
+  /// Current TTS provider
+  public var ttsProvider: TTSProvider {
+    get { ttsConfiguration.provider }
+    set {
+      ttsConfiguration.provider = newValue
+    }
+  }
+
+  /// Current OpenAI TTS voice
+  public var openAITTSVoice: OpenAITTSVoice {
+    get { ttsConfiguration.openAIVoice }
+    set {
+      ttsConfiguration.openAIVoice = newValue
+    }
+  }
+
+  /// Current OpenAI TTS model
+  public var openAITTSModel: OpenAITTSModel {
+    get { ttsConfiguration.openAIModel }
+    set {
+      ttsConfiguration.openAIModel = newValue
+    }
+  }
+
   public var hasValidAPIKey: Bool {
     !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
@@ -80,6 +114,32 @@ public final class SettingsManager {
 
     // Load bypass permissions setting (default: false)
     self.bypassPermissions = UserDefaults.standard.bool(forKey: "claude_code_bypass_permissions")
+
+    // Load TTS configuration or use default
+    self.ttsConfiguration = Self.loadTTSConfiguration()
+  }
+
+  // MARK: - TTS Configuration Persistence
+
+  private func saveTTSConfiguration() {
+    do {
+      let data = try JSONEncoder().encode(ttsConfiguration)
+      UserDefaults.standard.set(data, forKey: Self.ttsConfigKey)
+    } catch {
+      AppLogger.error("Failed to save TTS configuration: \(error)")
+    }
+  }
+
+  private static func loadTTSConfiguration() -> TTSConfiguration {
+    guard let data = UserDefaults.standard.data(forKey: ttsConfigKey) else {
+      return .default
+    }
+    do {
+      return try JSONDecoder().decode(TTSConfiguration.self, from: data)
+    } catch {
+      AppLogger.error("Failed to load TTS configuration: \(error)")
+      return .default
+    }
   }
 
   public func clearAPIKey() {
