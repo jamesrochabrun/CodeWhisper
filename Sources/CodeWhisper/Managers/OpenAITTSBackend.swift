@@ -55,18 +55,14 @@ public final class OpenAITTSBackend: NSObject {
 
   /// Speak the given text using OpenAI TTS
   public func speak(text: String) async {
-    print("[OpenAITTSBackend] speak() called with \(text.count) characters")
-
     // Stop any current speech
     stop()
 
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      print("[OpenAITTSBackend] Text is empty after trimming, skipping")
       return
     }
 
     guard let service = service else {
-      print("[OpenAITTSBackend] No OpenAI service configured")
       return
     }
 
@@ -84,19 +80,14 @@ public final class OpenAITTSBackend: NSObject {
         speed: speed
       )
 
-      print("[OpenAITTSBackend] Calling OpenAI TTS API...")
-
       // Call OpenAI API
       let speechObject = try await service.createSpeech(parameters: parameters)
       let audioData = speechObject.output
-
-      print("[OpenAITTSBackend] Received \(audioData.count) bytes of audio data")
 
       // Play the audio
       playAudio(from: audioData, textLength: text.count)
 
     } catch {
-      print("[OpenAITTSBackend] Error: \(error)")
       stopAudioLevelSimulation()
       isSpeakingFlag = false
       delegate?.ttsBackendDidUpdateAudioLevel(0)
@@ -165,12 +156,9 @@ public final class OpenAITTSBackend: NSObject {
 
       startTime = Date()
       startProgressTimer()
-
-      print("[OpenAITTSBackend] Playing audio, duration: \(estimatedDuration)s")
       audioPlayer?.play()
 
     } catch {
-      print("[OpenAITTSBackend] Error playing audio: \(error.localizedDescription)")
       stopAudioLevelSimulation()
       isSpeakingFlag = false
       delegate?.ttsBackendDidUpdateAudioLevel(0)
@@ -256,7 +244,6 @@ extension OpenAITTSBackend: AVAudioPlayerDelegate {
     error: Error?
   ) {
     Task { @MainActor in
-      print("[OpenAITTSBackend] Audio decode error: \(error?.localizedDescription ?? "unknown")")
       self.stopAudioLevelSimulation()
       self.stopProgressTimer()
       self.isSpeakingFlag = false
