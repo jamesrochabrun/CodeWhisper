@@ -65,13 +65,10 @@ public final class AppleTTSBackend: NSObject {
 
   /// Speak the given text
   public func speak(text: String) {
-    print("[AppleTTSBackend] speak() called with \(text.count) characters")
-
     // Stop any current speech
     stop()
 
     guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      print("[AppleTTSBackend] Text is empty after trimming, skipping")
       return
     }
 
@@ -88,7 +85,6 @@ public final class AppleTTSBackend: NSObject {
     // Start audio level simulation for visualizer
     startAudioLevelSimulation()
 
-    print("[AppleTTSBackend] Starting speech synthesis...")
     synthesizer.speak(utterance)
   }
 

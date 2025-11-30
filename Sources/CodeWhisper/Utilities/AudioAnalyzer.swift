@@ -176,7 +176,83 @@ public struct AudioAnalyzer {
   static func smoothValue(_ current: Float, target: Float, smoothing: Float = 0.8) -> Float {
     return current * smoothing + target * (1.0 - smoothing)
   }
-  
+
+  // MARK: - Waveform Segment Analysis
+
+  /// Extract amplitude values at evenly spaced segments across the buffer
+  /// Each segment represents the RMS amplitude of a portion of the audio buffer,
+  /// creating a waveform visualization where each bar reflects actual audio content.
+  /// - Parameters:
+  ///   - buffer: Audio PCM buffer (typically 1024 samples)
+  ///   - segmentCount: Number of segments to extract (default 8)
+  /// - Returns: Array of amplitude values (0.0 to 1.0) for each segment
+  static func extractWaveformSegments(
+    buffer: AVAudioPCMBuffer,
+    segmentCount: Int = 8
+  ) -> [Float] {
+    let frameLength = Int(buffer.frameLength)
+    guard frameLength > 0, segmentCount > 0 else {
+      return Array(repeating: 0.0, count: segmentCount)
+    }
+
+    var segments: [Float] = []
+    segments.reserveCapacity(segmentCount)
+    let segmentSize = frameLength / segmentCount
+
+    // Handle int16 format (common from STTRecorder)
+    if let channelData = buffer.int16ChannelData?[0] {
+      for i in 0..<segmentCount {
+        let startIndex = i * segmentSize
+        let endIndex = min(startIndex + segmentSize, frameLength)
+
+        // Calculate RMS for this segment
+        var sum: Float = 0.0
+        for j in startIndex..<endIndex {
+          let sample = Float(channelData[j]) / Float(Int16.max)
+          sum += sample * sample
+        }
+        let rms = sqrt(sum / Float(endIndex - startIndex))
+        segments.append(min(1.0, rms * 3.0)) // Amplify for visibility
+      }
+    }
+    // Handle float format
+    else if let channelData = buffer.floatChannelData?[0] {
+      for i in 0..<segmentCount {
+        let startIndex = i * segmentSize
+        let endIndex = min(startIndex + segmentSize, frameLength)
+
+        var sum: Float = 0.0
+        for j in startIndex..<endIndex {
+          let sample = channelData[j]
+          sum += sample * sample
+        }
+        let rms = sqrt(sum / Float(endIndex - startIndex))
+        segments.append(min(1.0, rms * 3.0))
+      }
+    } else {
+      return Array(repeating: 0.0, count: segmentCount)
+    }
+
+    return segments
+  }
+
+  /// Apply smoothing to an array of waveform values
+  /// - Parameters:
+  ///   - current: Current array of values
+  ///   - target: Target array of values
+  ///   - smoothing: Smoothing factor (0.0 = no smoothing, 1.0 = maximum smoothing)
+  /// - Returns: Smoothed array of values
+  static func smoothWaveform(
+    _ current: [Float],
+    target: [Float],
+    smoothing: Float = 0.3
+  ) -> [Float] {
+    guard current.count == target.count else { return target }
+    return zip(current, target).map { curr, tgt in
+      curr * smoothing + tgt * (1.0 - smoothing)
+    }
+  }
+
   // MARK: - Private Helpers
   
   /// Calculate energy in a frequency band

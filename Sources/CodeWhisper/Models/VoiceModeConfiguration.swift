@@ -10,11 +10,9 @@ import Foundation
 // MARK: - VoiceMode
 
 /// Defines the voice mode operation type for InlineVoiceModeView
-public enum VoiceMode: Equatable, Sendable {
+public enum VoiceMode: Equatable, Sendable, CaseIterable {
   /// Speech-to-text only - tap to toggle recording, outputs transcription
   case stt
-  /// Text-to-speech only - uses Apple's AVSpeechSynthesizer
-  case tts
   /// Combined STT + TTS - user speaks (STT), callback fires, parent triggers TTS for response
   case sttWithTTS
   /// Bidirectional realtime voice (current behavior)

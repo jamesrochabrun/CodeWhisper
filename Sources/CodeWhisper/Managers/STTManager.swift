@@ -24,6 +24,9 @@ public final class STTManager {
   /// Current audio level (0.0 - 1.0) for visualization
   public private(set) var audioLevel: Float = 0.0
   
+  /// Waveform levels for each segment (8 values, 0.0 - 1.0) for waveform visualization
+  public private(set) var waveformLevels: [Float] = Array(repeating: 0.0, count: 8)
+  
   /// Error message if transcription failed
   public private(set) var errorMessage: String?
   
@@ -39,6 +42,7 @@ public final class STTManager {
   private var recordingTask: Task<Void, Never>?
   private var audioBuffers: [AVAudioPCMBuffer] = []
   private var smoothedAudioLevel: Float = 0.0
+  private var smoothedWaveformLevels: [Float] = Array(repeating: 0.0, count: 8)
   
   // Audio format for recording
   private var recordingFormat: AVAudioFormat?
@@ -52,7 +56,6 @@ public final class STTManager {
   /// Configure the manager with an OpenAI service for transcription
   /// - Parameter service: The OpenAI service to use for Whisper transcription
   public func configure(service: OpenAIService) {
-    print("[STTManager] configure() called on \(ObjectIdentifier(self))")
     self.service = service
   }
   
@@ -61,16 +64,12 @@ public final class STTManager {
   /// Toggle recording state (tap-to-toggle behavior)
   /// Call this when the user taps the record button
   public func toggleRecording() async {
-    print("[STTManager] === toggleRecording ENTERED === id: \(ObjectIdentifier(self)), state: \(state)")
     switch state {
     case .idle, .error:
-      print("[STTManager] Starting recording...")
       await startRecording()
     case .recording:
-      print("[STTManager] Stopping and transcribing...")
       await stopRecordingAndTranscribe()
     case .transcribing:
-      print("[STTManager] Already transcribing, ignoring tap")
       // Ignore taps while transcribing
       break
     }
@@ -93,6 +92,8 @@ public final class STTManager {
     state = .idle
     audioLevel = 0.0
     smoothedAudioLevel = 0.0
+    waveformLevels = Array(repeating: 0.0, count: 8)
+    smoothedWaveformLevels = Array(repeating: 0.0, count: 8)
     errorMessage = nil
   }
   
@@ -137,13 +138,25 @@ public final class STTManager {
           // Calculate audio level for visualization
           let rms = AudioAnalyzer.calculateRMS(buffer: buffer)
           
+          // Extract waveform segments for visualization
+          let segments = AudioAnalyzer.extractWaveformSegments(buffer: buffer, segmentCount: 8)
+          
           await MainActor.run {
+            // Reduce smoothing from 0.7 to 0.3 for snappier response
             self.smoothedAudioLevel = AudioAnalyzer.smoothValue(
               self.smoothedAudioLevel,
               target: rms,
-              smoothing: 0.7
+              smoothing: 0.3
             )
             self.audioLevel = self.smoothedAudioLevel
+            
+            // Smooth waveform levels array
+            self.smoothedWaveformLevels = AudioAnalyzer.smoothWaveform(
+              self.smoothedWaveformLevels,
+              target: segments,
+              smoothing: 0.3
+            )
+            self.waveformLevels = self.smoothedWaveformLevels
           }
         }
       } catch {
@@ -156,7 +169,6 @@ public final class STTManager {
   }
   
   private func stopRecordingAndTranscribe() async {
-    print("[STTManager] stopRecordingAndTranscribe started")
     
     // Stop recording
     recordingTask?.cancel()
@@ -171,9 +183,7 @@ public final class STTManager {
     }
     
     // Check if we have audio data
-    print("[STTManager] audioBuffers count: \(audioBuffers.count)")
     guard !audioBuffers.isEmpty else {
-      print("[STTManager] ERROR: No audio buffers, returning early")
       state = .idle
       audioLevel = 0.0
       return
@@ -186,19 +196,15 @@ public final class STTManager {
     do {
       // Convert buffers to audio file data
       guard let audioData = createWavFileData() else {
-        print("[STTManager] ERROR: Failed to create WAV data")
         throw NSError(domain: "STTManager", code: 1, userInfo: [
           NSLocalizedDescriptionKey: "Failed to convert audio buffers to file"
         ])
       }
-      print("[STTManager] Created WAV data, size: \(audioData.count) bytes")
-      
       // Clear buffers
       audioBuffers.removeAll()
       
       // Check service is configured
       guard let service = service else {
-        print("[STTManager] ERROR: Service not configured")
         throw NSError(domain: "STTManager", code: 2, userInfo: [
           NSLocalizedDescriptionKey: "OpenAI service not configured. Call configure(service:) first."
         ])
@@ -214,27 +220,21 @@ public final class STTManager {
       )
       
       // Call Whisper API
-      print("[STTManager] Calling Whisper API...")
       let result = try await service.createTranscription(parameters: parameters)
-      print("[STTManager] Whisper API returned: '\(result.text)'")
       
       // Success - update state and call callback
       state = .idle
       errorMessage = nil
       
       let transcribedText = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      print("[STTManager] Trimmed text: '\(transcribedText)', isEmpty: \(transcribedText.isEmpty)")
       
       if !transcribedText.isEmpty {
-        print("[STTManager] Calling onTranscription callback...")
-        print("[STTManager] onTranscription is nil: \(onTranscription == nil)")
         onTranscription?(transcribedText)
       } else {
         print("[STTManager] WARNING: Transcribed text is empty, not calling callback")
       }
       
     } catch {
-      print("[STTManager] ERROR: Transcription failed: \(error)")
       state = .error(error.localizedDescription)
       errorMessage = "Transcription failed: \(error.localizedDescription)"
       audioBuffers.removeAll()
