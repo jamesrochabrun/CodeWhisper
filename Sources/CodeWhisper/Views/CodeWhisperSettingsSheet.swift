@@ -15,13 +15,19 @@ public struct CodeWhisperSettingsSheet: View {
   @Environment(MCPServerManager.self) private var mcpManager
   @Environment(\.dismiss) private var dismiss
 
-  public init() {}
+  let configuration: CodeWhisperConfiguration
+
+  public init(configuration: CodeWhisperConfiguration = .all) {
+    self.configuration = configuration
+  }
 
   public var body: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 20) {
-          VoiceModeSection()
+          if configuration.showVoiceModePicker {
+            VoiceModeSection(availableModes: configuration.availableVoiceModes)
+          }
           TTSSettingsSection()
           APIKeySection()
           WorkingDirectorySection()
@@ -67,11 +73,12 @@ private struct SectionHeader: View {
 
 private struct VoiceModeSection: View {
   @Environment(SettingsManager.self) private var settings
+  let availableModes: [VoiceMode]
 
   var body: some View {
     GroupBox {
       VStack(spacing: 8) {
-        ForEach(VoiceMode.allCases, id: \.self) { mode in
+        ForEach(availableModes, id: \.self) { mode in
           VoiceModeOptionRow(
             mode: mode,
             isSelected: settings.selectedVoiceMode == mode,
