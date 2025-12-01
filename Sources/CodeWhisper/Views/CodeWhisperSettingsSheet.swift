@@ -28,10 +28,14 @@ public struct CodeWhisperSettingsSheet: View {
           if configuration.showVoiceModePicker {
             VoiceModeSection(availableModes: configuration.availableVoiceModes)
           }
-          TTSSettingsSection()
+          if needsTTSSettings {
+            TTSSettingsSection()
+          }
           APIKeySection()
-          WorkingDirectorySection()
-          MCPServersSection()
+          if needsClaudeCodeSettings {
+            WorkingDirectorySection()
+            MCPServersSection()
+          }
           DangerZoneSection()
         }
         .padding(24)
@@ -47,7 +51,20 @@ public struct CodeWhisperSettingsSheet: View {
         }
       }
     }
-    .frame(minWidth: 480, idealWidth: 520, minHeight: 700, idealHeight: 750)
+    .frame(minWidth: 480, idealWidth: 520, minHeight: 400, idealHeight: 450)
+  }
+
+  // MARK: - Computed Properties
+
+  /// TTS settings needed for Voice Chat or Realtime modes
+  private var needsTTSSettings: Bool {
+    configuration.availableVoiceModes.contains(.sttWithTTS) ||
+    configuration.availableVoiceModes.contains(.realtime)
+  }
+
+  /// Claude Code settings needed only for Realtime mode
+  private var needsClaudeCodeSettings: Bool {
+    configuration.availableVoiceModes.contains(.realtime)
   }
 }
 
