@@ -78,7 +78,6 @@ public struct STTModeView: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 4)
-    .background { glassBackground }
     .task {
       await initializeSTTMode()
       await sttManager.toggleRecording()
@@ -129,7 +128,7 @@ public struct STTModeView: View {
       // TTS Visualizer
       WaveformBarsView(
         waveformLevels: deriveTTSWaveform(speaker.audioLevel),
-        barColor: .green.opacity(0.8),
+        barColor: .teal,
         isActive: true
       )
       .frame(height: height - 16)
@@ -154,17 +153,7 @@ public struct STTModeView: View {
       )
       .allowsHitTesting(false)
   }
-  
-  @ViewBuilder
-  private var glassBackground: some View {
-#if os(visionOS)
-    Color.clear.glassBackgroundEffect()
-#else
-    Capsule()
-      .fill(.ultraThinMaterial)
-#endif
-  }
-  
+
   // MARK: - STT Initialization
   
   private func initializeSTTMode() async {

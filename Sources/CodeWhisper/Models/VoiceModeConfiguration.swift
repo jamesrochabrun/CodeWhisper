@@ -10,13 +10,49 @@ import Foundation
 // MARK: - VoiceMode
 
 /// Defines the voice mode operation type for InlineVoiceModeView
-public enum VoiceMode: Equatable, Sendable, CaseIterable {
+public enum VoiceMode: String, Equatable, Sendable, CaseIterable, Codable {
   /// Speech-to-text only - tap to toggle recording, outputs transcription
-  case stt
+  case stt = "stt"
   /// Combined STT + TTS - user speaks (STT), callback fires, parent triggers TTS for response
-  case sttWithTTS
+  case sttWithTTS = "stt_with_tts"
   /// Bidirectional realtime voice (current behavior)
-  case realtime
+  case realtime = "realtime"
+
+  /// Display name for UI
+  public var displayName: String {
+    switch self {
+    case .stt:
+      return "Speech to Text"
+    case .sttWithTTS:
+      return "Voice Chat"
+    case .realtime:
+      return "Realtime Voice"
+    }
+  }
+
+  /// Description for UI
+  public var description: String {
+    switch self {
+    case .stt:
+      return "Tap to record, transcribes to text"
+    case .sttWithTTS:
+      return "Speak and hear responses"
+    case .realtime:
+      return "Full bidirectional conversation"
+    }
+  }
+
+  /// SF Symbol icon name
+  public var iconName: String {
+    switch self {
+    case .stt:
+      return "mic.fill"
+    case .sttWithTTS:
+      return "message.and.waveform.fill"
+    case .realtime:
+      return "waveform.circle.fill"
+    }
+  }
 }
 
 // MARK: - STTRecordingState

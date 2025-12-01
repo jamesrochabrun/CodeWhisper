@@ -18,6 +18,7 @@ public struct SettingsView: View {
       Form {
         APIKeySection()
         WorkingDirectorySection()
+        VoiceModeSection()
         TTSSettingsSection()
         MCPServersSection()
         DangerZoneSection()
@@ -177,6 +178,65 @@ private struct WorkingDirectoryRow: View {
       }
     }
     .padding(.vertical, 4)
+  }
+}
+
+// MARK: - Voice Mode Section
+
+private struct VoiceModeSection: View {
+  @Environment(SettingsManager.self) private var settings
+
+  var body: some View {
+    @Bindable var settings = settings
+
+    Section {
+      ForEach(VoiceMode.allCases, id: \.self) { mode in
+        VoiceModeRow(
+          mode: mode,
+          isSelected: settings.selectedVoiceMode == mode,
+          onSelect: { settings.selectedVoiceMode = mode }
+        )
+      }
+    } header: {
+      Text("Voice Mode")
+    } footer: {
+      Text("Select your preferred voice interaction style. This will be used when you tap the voice button.")
+        .font(.caption)
+    }
+  }
+}
+
+private struct VoiceModeRow: View {
+  let mode: VoiceMode
+  let isSelected: Bool
+  let onSelect: () -> Void
+
+  var body: some View {
+    Button(action: onSelect) {
+      HStack {
+        Image(systemName: mode.iconName)
+          .foregroundStyle(isSelected ? .blue : .secondary)
+          .frame(width: 24)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text(mode.displayName)
+            .foregroundStyle(.primary)
+          Text(mode.description)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        if isSelected {
+          Image(systemName: "checkmark")
+            .foregroundStyle(.blue)
+            .fontWeight(.semibold)
+        }
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
   }
 }
 

@@ -20,7 +20,6 @@ public struct VoiceModeView: View {
   @State private var conversationManager = ConversationManager()
   @State private var isInitializing = true
   @State private var showScreenshotPicker = false
-  @State private var showingSettings = false
   @State private var textInput: String = ""
   @FocusState private var isTextFieldFocused: Bool
   
@@ -61,9 +60,6 @@ public struct VoiceModeView: View {
         }
       }
     }
-    .sheet(isPresented: $showingSettings) {
-      SettingsView()
-    }
   }
   
   // MARK: - Computed Properties
@@ -84,7 +80,6 @@ public struct VoiceModeView: View {
         if presentationMode == .presented {
           closeButton
         }
-        settingsButton
       }
     }
     .padding()
@@ -117,18 +112,6 @@ public struct VoiceModeView: View {
     .opacity(conversationManager.isConnected ? 1.0 : 0.5)
     .help(conversationManager.isMicrophoneMuted ? "Unmute microphone (⌘M)" : "Mute microphone (⌘M)")
     .keyboardShortcut("m", modifiers: .command)
-  }
-  
-  private var settingsButton: some View {
-    Button {
-      showingSettings = true
-    } label: {
-      Image(systemName: "gear")
-        .font(.system(size: 28))
-        .foregroundStyle(.white.opacity(0.7))
-    }
-    .buttonStyle(.plain)
-    .help("Settings")
   }
   
   private var closeButton: some View {

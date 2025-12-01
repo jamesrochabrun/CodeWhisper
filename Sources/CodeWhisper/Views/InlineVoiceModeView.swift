@@ -49,7 +49,6 @@ public struct InlineVoiceModeView: View {
   
   @State private var isInitializing = true
   @State private var showScreenshotPicker = false
-  @State private var showingSettings = false
   
   // MARK: - Initializers
   
@@ -171,9 +170,6 @@ public struct InlineVoiceModeView: View {
         }
       }
     }
-    .sheet(isPresented: $showingSettings) {
-      SettingsView()
-    }
   }
   
   // MARK: - Realtime Mode Components
@@ -190,7 +186,6 @@ public struct InlineVoiceModeView: View {
       if conversationManager.isExecutingTool {
         stopProcessButton
       }
-      settingsButton
       if presentationMode == .presented {
         closeButton
       }
@@ -224,18 +219,6 @@ public struct InlineVoiceModeView: View {
     .opacity(conversationManager.isConnected ? 1.0 : 0.5)
     .help(conversationManager.isMicrophoneMuted ? "Unmute microphone (⌘M)" : "Mute microphone (⌘M)")
     .keyboardShortcut("m", modifiers: .command)
-  }
-  
-  private var settingsButton: some View {
-    Button {
-      showingSettings = true
-    } label: {
-      Image(systemName: "gear")
-        .font(.system(size: 18))
-        .foregroundStyle(.white.opacity(0.7))
-    }
-    .buttonStyle(.plain)
-    .help("Settings")
   }
   
   private var closeButton: some View {

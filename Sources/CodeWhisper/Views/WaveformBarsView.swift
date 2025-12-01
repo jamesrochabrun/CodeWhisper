@@ -39,7 +39,7 @@ public struct WaveformBarsView: View {
     HStack(spacing: 3) {
       ForEach(0..<barCount, id: \.self) { index in
         RoundedRectangle(cornerRadius: 2)
-          .fill(barColor)
+          .fill(.primary) // Temporarily ignoring bar color, pending design
           .frame(width: 3)
           .frame(height: barHeight(for: index))
           .animation(.easeOut(duration: 0.05), value: waveformLevels)
