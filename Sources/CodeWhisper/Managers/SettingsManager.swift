@@ -16,6 +16,7 @@ public final class SettingsManager {
   private static let apiKeyEnvVar = "OPENAI_API_KEY"
   private static let keychainKey = "openai_api_key"
   private static let ttsConfigKey = "tts_configuration"
+  private static let voiceModeKey = "code_whisper_voice_mode"
 
   /// The current API key - either from environment variable or stored in Keychain
   public var apiKey: String {
@@ -57,6 +58,13 @@ public final class SettingsManager {
   public var ttsConfiguration: TTSConfiguration {
     didSet {
       saveTTSConfiguration()
+    }
+  }
+
+  /// Selected voice mode
+  public var selectedVoiceMode: VoiceMode {
+    didSet {
+      saveVoiceMode()
     }
   }
 
@@ -117,6 +125,9 @@ public final class SettingsManager {
 
     // Load TTS configuration or use default
     self.ttsConfiguration = Self.loadTTSConfiguration()
+
+    // Load selected voice mode or use default (.stt)
+    self.selectedVoiceMode = Self.loadVoiceMode()
   }
 
   // MARK: - TTS Configuration Persistence
@@ -140,6 +151,20 @@ public final class SettingsManager {
       AppLogger.error("Failed to load TTS configuration: \(error)")
       return .default
     }
+  }
+
+  // MARK: - Voice Mode Persistence
+
+  private func saveVoiceMode() {
+    UserDefaults.standard.set(selectedVoiceMode.rawValue, forKey: Self.voiceModeKey)
+  }
+
+  private static func loadVoiceMode() -> VoiceMode {
+    guard let rawValue = UserDefaults.standard.string(forKey: voiceModeKey),
+          let mode = VoiceMode(rawValue: rawValue) else {
+      return .stt  // Default voice mode
+    }
+    return mode
   }
 
   public func clearAPIKey() {
