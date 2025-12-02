@@ -87,9 +87,49 @@ public enum TTSSpeakingState: Equatable, Sendable {
   case idle
   case speaking
   case paused
-  
+
   public var isSpeaking: Bool {
     if case .speaking = self { return true }
     return false
   }
+}
+
+// MARK: - CodeWhisperConfiguration
+
+/// Configuration for CodeWhisperButton to specify available voice modes
+public struct CodeWhisperConfiguration: Sendable {
+  /// Voice modes available for selection. Order determines display order.
+  public let availableVoiceModes: [VoiceMode]
+
+  /// Default voice mode (first in availableVoiceModes)
+  public var defaultVoiceMode: VoiceMode {
+    availableVoiceModes.first ?? .stt
+  }
+
+  /// Whether to show the voice mode picker (hidden if only 1 mode)
+  public var showVoiceModePicker: Bool {
+    availableVoiceModes.count > 1
+  }
+
+  public init(availableVoiceModes: [VoiceMode] = VoiceMode.allCases) {
+    // Ensure at least one mode, default to all if empty
+    self.availableVoiceModes = availableVoiceModes.isEmpty
+      ? Array(VoiceMode.allCases)
+      : availableVoiceModes
+  }
+
+  /// All voice modes available (default)
+  public static let all = CodeWhisperConfiguration()
+
+  /// Speech-to-text only
+  public static let sttOnly = CodeWhisperConfiguration(availableVoiceModes: [.stt])
+
+  /// Voice chat only (STT + TTS)
+  public static let voiceChatOnly = CodeWhisperConfiguration(availableVoiceModes: [.sttWithTTS])
+
+  /// Realtime voice only
+  public static let realtimeOnly = CodeWhisperConfiguration(availableVoiceModes: [.realtime])
+
+  /// All modes except realtime
+  public static let noRealtime = CodeWhisperConfiguration(availableVoiceModes: [.stt, .sttWithTTS])
 }

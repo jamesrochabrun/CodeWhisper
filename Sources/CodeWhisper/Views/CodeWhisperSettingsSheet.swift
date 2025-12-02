@@ -15,17 +15,27 @@ public struct CodeWhisperSettingsSheet: View {
   @Environment(MCPServerManager.self) private var mcpManager
   @Environment(\.dismiss) private var dismiss
 
-  public init() {}
+  let configuration: CodeWhisperConfiguration
+
+  public init(configuration: CodeWhisperConfiguration = .all) {
+    self.configuration = configuration
+  }
 
   public var body: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 20) {
-          VoiceModeSection()
-          TTSSettingsSection()
+          if configuration.showVoiceModePicker {
+            VoiceModeSection(availableModes: configuration.availableVoiceModes)
+          }
+          if needsTTSSettings {
+            TTSSettingsSection()
+          }
           APIKeySection()
-          WorkingDirectorySection()
-          MCPServersSection()
+          if needsClaudeCodeSettings {
+            WorkingDirectorySection()
+            MCPServersSection()
+          }
           DangerZoneSection()
         }
         .padding(24)
@@ -41,7 +51,20 @@ public struct CodeWhisperSettingsSheet: View {
         }
       }
     }
-    .frame(minWidth: 480, idealWidth: 520, minHeight: 700, idealHeight: 750)
+    .frame(minWidth: 480, idealWidth: 520, minHeight: 400, idealHeight: 450)
+  }
+
+  // MARK: - Computed Properties
+
+  /// TTS settings needed for Voice Chat or Realtime modes
+  private var needsTTSSettings: Bool {
+    configuration.availableVoiceModes.contains(.sttWithTTS) ||
+    configuration.availableVoiceModes.contains(.realtime)
+  }
+
+  /// Claude Code settings needed only for Realtime mode
+  private var needsClaudeCodeSettings: Bool {
+    configuration.availableVoiceModes.contains(.realtime)
   }
 }
 
@@ -67,11 +90,12 @@ private struct SectionHeader: View {
 
 private struct VoiceModeSection: View {
   @Environment(SettingsManager.self) private var settings
+  let availableModes: [VoiceMode]
 
   var body: some View {
     GroupBox {
       VStack(spacing: 8) {
-        ForEach(VoiceMode.allCases, id: \.self) { mode in
+        ForEach(availableModes, id: \.self) { mode in
           VoiceModeOptionRow(
             mode: mode,
             isSelected: settings.selectedVoiceMode == mode,

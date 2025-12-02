@@ -1,46 +1,183 @@
 # CodeWhisper
 
-A real-time voice-enabled AI coding assistant for macOS, iOS, and visionOS that integrates OpenAI's Realtime API with Claude Code for powerful coding assistance through voice conversations.
+A voice-enabled AI assistant framework for macOS, iOS, and visionOS. Supports multiple voice modes from simple speech-to-text to full bidirectional realtime conversations with OpenAI's APIs.
 
 ## Features
 
-- **Voice-to-Voice AI Conversations**: Real-time audio conversations with GPT-4 using OpenAI's Realtime API
-- **Claude Code Integration**: Execute coding tasks (file operations, refactoring, debugging) through voice commands
-- **Screenshot Capture**: Share visual context with AI using macOS ScreenCaptureKit
-- **Audio Visualization**: Real-time audio visualization during conversations (Metal and SwiftUI Canvas)
+- **Multiple Voice Modes**: Choose between Speech-to-Text, Voice Chat, or Realtime conversations
+- **Drop-in Integration**: Add voice capabilities with a single `CodeWhisperButton`
+- **Configurable**: Control which voice modes are available per-button
+- **Claude Code Integration**: Execute coding tasks through voice commands (Realtime mode)
 - **MCP Server Support**: Extend capabilities with Model Context Protocol servers
 - **Multi-Platform**: Works on macOS, iOS, and visionOS
+
+## Voice Modes
+
+CodeWhisper supports three voice modes, each suited for different use cases:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **Speech to Text** (`.stt`) | Tap to record, transcribes to text | Text input via voice, dictation |
+| **Voice Chat** (`.sttWithTTS`) | Speak and hear responses | Conversational AI with voice I/O |
+| **Realtime** (`.realtime`) | Full bidirectional conversation | Live coding assistance, complex interactions |
 
 ## Installation
 
 ### Swift Package Manager
 
-Add CodeWhisper to your project using Swift Package Manager:
+Add CodeWhisper to your project:
 
 #### In Xcode:
 1. File > Add Package Dependencies...
-2. Enter the repository URL: `https://github.com/YOUR_USERNAME/CodeWhisper`
+2. Enter the repository URL: `https://github.com/jamesrochabrun/CodeWhisper`
 3. Select the version you want to use
-4. Add the `CodeWhisper` product to your target
 
 #### In Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR_USERNAME/CodeWhisper", from: "1.0.0")
+    .package(url: "https://github.com/jamesrochabrun/CodeWhisper", from: "1.0.0")
 ]
 ```
 
-Then add it to your target dependencies:
+## Quick Start
+
+### 1. Add the Button
+
+The simplest integration - just add `CodeWhisperButton` to your view:
+
 ```swift
-.target(
-    name: "YourTarget",
-    dependencies: ["CodeWhisper"]
+import SwiftUI
+import CodeWhisper
+
+struct ChatView: View {
+    var body: some View {
+        HStack {
+            TextField("Message...", text: $message)
+
+            // Add voice input button
+            CodeWhisperButton(chatInterface: nil)
+        }
+    }
+}
+```
+
+### 2. Handle Transcriptions
+
+To receive transcribed text, implement `VoiceModeChatInterface`:
+
+```swift
+import SwiftUI
+import CodeWhisper
+
+struct ChatView: View {
+    @State private var message = ""
+    @StateObject private var chatHandler = MyChatHandler()
+
+    var body: some View {
+        HStack {
+            TextField("Message...", text: $message)
+
+            CodeWhisperButton(
+                chatInterface: chatHandler,
+                onTranscription: { text in
+                    // User's speech was transcribed
+                    message = text
+                }
+            )
+        }
+    }
+}
+
+class MyChatHandler: VoiceModeChatInterface {
+    // Publisher for assistant responses (used in Voice Chat mode)
+    var assistantMessageCompletedPublisher: AnyPublisher<VoiceModeMessage, Never> {
+        // Return your publisher here
+    }
+
+    func sendVoiceMessage(_ text: String) {
+        // Handle the transcribed message
+    }
+}
+```
+
+### 3. Configure Available Modes
+
+Control which voice modes users can select:
+
+```swift
+// All modes (default)
+CodeWhisperButton(chatInterface: handler)
+
+// Speech-to-text only - no mode picker shown
+CodeWhisperButton(
+    chatInterface: handler,
+    configuration: .sttOnly
+)
+
+// Voice chat only
+CodeWhisperButton(
+    chatInterface: handler,
+    configuration: .voiceChatOnly
+)
+
+// Exclude realtime mode
+CodeWhisperButton(
+    chatInterface: handler,
+    configuration: .noRealtime
+)
+
+// Custom combination
+CodeWhisperButton(
+    chatInterface: handler,
+    configuration: CodeWhisperConfiguration(
+        availableVoiceModes: [.stt, .sttWithTTS]
+    )
 )
 ```
 
-## Usage
+### 4. Realtime Mode with Claude Code
 
-### Basic Setup
+For realtime voice with coding capabilities, provide a `ClaudeCodeExecutor`:
+
+```swift
+CodeWhisperButton(
+    chatInterface: handler,
+    executor: claudeCodeExecutor,
+    configuration: .realtimeOnly,
+    isRealtimeSessionActive: $isActive
+)
+```
+
+## Configuration Presets
+
+| Preset | Modes Included | Picker Shown |
+|--------|----------------|--------------|
+| `.all` | STT, Voice Chat, Realtime | Yes |
+| `.sttOnly` | STT | No |
+| `.voiceChatOnly` | Voice Chat | No |
+| `.realtimeOnly` | Realtime | No |
+| `.noRealtime` | STT, Voice Chat | Yes |
+
+When only one mode is configured, the voice mode picker is hidden in settings.
+
+## Button Behavior
+
+`CodeWhisperButton` provides two interactions:
+
+- **Tap**: Starts the currently selected voice mode
+- **Long Press**: Opens the settings sheet
+
+The button automatically handles:
+- API key validation (prompts for settings if missing)
+- Mode switching based on user preference
+- Inline UI for STT/Voice Chat modes
+- Sheet presentation for Realtime mode
+
+## App Setup
+
+### Environment Setup
+
+For full functionality, set up the required environment objects:
 
 ```swift
 import SwiftUI
@@ -54,75 +191,66 @@ struct YourApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            YourContentView()
                 .environment(settingsManager)
                 .environment(mcpServerManager)
                 .environment(serviceManager)
-                .onChange(of: settingsManager.apiKey) { _, newValue in
-                    serviceManager.updateService(apiKey: newValue)
-                }
                 .onAppear {
                     serviceManager.updateService(apiKey: settingsManager.apiKey)
-                    serviceManager.setMCPServerManager(mcpServerManager)
+                }
+                .onChange(of: settingsManager.apiKey) { _, newValue in
+                    serviceManager.updateService(apiKey: newValue)
                 }
         }
     }
 }
 ```
 
-### Using the Voice Mode
+### API Key Configuration
 
+CodeWhisper requires an OpenAI API key. Users can configure it via:
+
+1. **Settings Sheet** (long-press on `CodeWhisperButton`)
+2. **Environment Variable**: Set `OPENAI_API_KEY`
+3. **Programmatically**:
 ```swift
-import SwiftUI
-import CodeWhisper
-
-struct MyView: View {
-    var body: some View {
-        VoiceModeView()
-    }
-}
+settingsManager.apiKey = "sk-..."
 ```
 
 ## Required Permissions & Entitlements
 
-CodeWhisper requires specific permissions and entitlements to enable its features. This section covers all the configuration needed for consumer apps.
-
 ### Info.plist Keys
 
-Add the following keys to your app's `Info.plist`:
-
 ```xml
-<!-- Required: Voice conversation functionality -->
+<!-- Required: Voice functionality -->
 <key>NSMicrophoneUsageDescription</key>
-<string>CodeWhisper needs access to your microphone to enable real-time voice conversations with AI.</string>
+<string>Enable voice conversations with AI.</string>
 
-<!-- Required: Screenshot capture functionality -->
+<!-- Optional: Screenshot capture (Realtime mode) -->
 <key>NSScreenCaptureUsageDescription</key>
-<string>CodeWhisper needs screen recording permission to capture screenshots that you can share with the AI assistant for visual context.</string>
+<string>Share screenshots with the AI assistant.</string>
 ```
 
-### Entitlements (macOS)
-
-Create a `YourApp.entitlements` file with the following configuration:
+### macOS Entitlements
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Disable App Sandbox for Claude Code file system access -->
+    <!-- Disable sandbox for Claude Code file access -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
 
-    <!-- Required: Microphone access for voice conversations -->
+    <!-- Microphone access -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
 
-    <!-- Required: Screen capture for screenshot functionality -->
+    <!-- Screen capture (optional) -->
     <key>com.apple.security.device.screen-capture</key>
     <true/>
 
-    <!-- Required: Keychain access for secure API key storage -->
+    <!-- Keychain for API key storage -->
     <key>keychain-access-groups</key>
     <array>
         <string>$(AppIdentifierPrefix)YOUR_BUNDLE_ID</string>
@@ -131,141 +259,58 @@ Create a `YourApp.entitlements` file with the following configuration:
 </plist>
 ```
 
-> **Important**: Replace `YOUR_BUNDLE_ID` with your actual app bundle identifier (e.g., `com.yourcompany.yourapp`).
-
-### Entitlements Breakdown
-
-| Entitlement | Purpose | Required For |
-|-------------|---------|--------------|
-| `com.apple.security.app-sandbox` = `false` | Disables sandboxing | Claude Code file system operations |
-| `com.apple.security.device.audio-input` | Microphone access | Voice conversations with OpenAI Realtime API |
-| `com.apple.security.device.screen-capture` | Screen recording | Screenshot capture via ScreenCaptureKit |
-| `keychain-access-groups` | Keychain access | Secure storage of API keys |
-
-### Runtime Permissions
-
-The following permissions will be requested at runtime (macOS will show system dialogs):
-
-1. **Microphone Permission**: Requested when starting a voice conversation
-   - System Settings → Privacy & Security → Microphone
-
-2. **Screen Recording Permission**: Requested when capturing screenshots
-   - System Settings → Privacy & Security → Screen Recording
-
-### iOS/visionOS
-
-For iOS and visionOS apps:
-- Microphone permission is requested automatically when needed
-- Screen recording is not available on iOS (screenshots use different APIs)
-- No additional entitlements file required beyond Info.plist keys
-
 ### App Store Distribution
 
-For **App Store distribution**, you cannot disable App Sandbox. You'll need to:
-
-1. Enable App Sandbox: `com.apple.security.app-sandbox` = `true`
-2. Add specific file access entitlements:
-   ```xml
-   <key>com.apple.security.files.user-selected.read-write</key>
-   <true/>
-   <key>com.apple.security.files.downloads.read-write</key>
-   <true/>
-   ```
-3. Note: Full Claude Code functionality may be limited due to sandbox restrictions
-
-For **non-App Store distribution** (Developer ID, direct distribution), disabling the sandbox as shown above is recommended for full functionality.
-
-## Configuration
-
-### API Keys
-
-CodeWhisper requires an OpenAI API key. You can configure it in the Settings view:
-
-```swift
-import CodeWhisper
-
-// Access settings
-@Environment(SettingsManager.self) private var settingsManager
-
-// Set API key
-settingsManager.apiKey = "your-openai-api-key"
+For App Store apps, enable sandbox with file access:
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
+<key>com.apple.security.files.user-selected.read-write</key>
+<true/>
 ```
 
-### Working Directory
-
-For Claude Code integration, configure the working directory where code operations should be performed:
-
-```swift
-settingsManager.workingDirectory = "/path/to/your/project"
-```
-
-### MCP Servers
-
-Configure Model Context Protocol servers to extend AI capabilities:
-
-```swift
-@Environment(MCPServerManager.self) private var mcpServerManager
-
-// Add an MCP server
-mcpServerManager.addServer(name: "MyServer", command: "node", arguments: ["server.js"])
-```
+Note: Full Claude Code functionality requires sandbox disabled (Developer ID distribution).
 
 ## Components
 
+### Entry Points
+- **CodeWhisperButton**: Primary integration point - compact button with tap/long-press actions
+- **CodeWhisperSettingsSheet**: Settings UI shown on long-press
+
+### Voice Mode Views
+- **InlineVoiceModeView**: Inline STT/Voice Chat interface
+- **VoiceModeView**: Full-screen Realtime conversation interface
+- **STTModeView**: Speech-to-text recording interface
+
 ### Managers
-- **ConversationManager**: Manages OpenAI Realtime sessions and audio streaming
-- **ClaudeCodeManager**: Integrates Claude Code SDK for coding task execution
-- **OpenAIServiceManager**: Manages OpenAI service configuration
-- **SettingsManager**: Handles API keys, working directory, and permissions
-- **MCPServerManager**: Manages MCP server configurations
+- **SettingsManager**: API keys, voice mode selection, TTS configuration
+- **OpenAIServiceManager**: OpenAI API service management
+- **MCPServerManager**: MCP server configuration
+- **STTManager**: Speech-to-text recording and transcription
+- **TTSSpeaker**: Text-to-speech playback
 
-### Views
-- **ContentView**: Landing page with "Start Voice Mode" button
-- **VoiceModeView**: Main voice conversation interface
-- **SettingsView**: Settings configuration UI
-- **MCPSettingsView**: MCP server configuration UI
-- **ConversationTranscriptView**: Shows conversation history
-
-### Utilities
-- **AudioAnalyzer**: FFT-based audio analysis for visualizations
-- **ScreenshotCapture**: macOS screenshot capture using ScreenCaptureKit
-- **WindowMatcher**: Matches windows by app name or title for targeted screenshots
-
-### Visualizers
-- **MetalAudioVisualizerView**: Metal-based GPU audio visualization
-- **SwiftUIAudioVisualizerView**: SwiftUI Canvas-based audio visualization
+### Configuration
+- **CodeWhisperConfiguration**: Controls available voice modes per-button
+- **TTSConfiguration**: TTS provider and voice settings
+- **VoiceMode**: Enum defining available modes (`.stt`, `.sttWithTTS`, `.realtime`)
 
 ## Platform Support
 
-- **macOS**: 15.6+
-- **iOS**: 17.0+
-- **visionOS**: 1.0+
+| Platform | Minimum Version |
+|----------|-----------------|
+| macOS | 15.0+ |
+| iOS | 17.0+ |
+| visionOS | 1.0+ |
 
 ## Dependencies
 
-CodeWhisper depends on:
 - [SwiftOpenAI](https://github.com/jamesrochabrun/SwiftOpenAI) - OpenAI API client
 - [ClaudeCodeUI](https://github.com/jamesrochabrun/ClaudeCodeUI) - Claude Code SDK integration
 
-## Example App
-
-This repository includes an example app that demonstrates all features of the CodeWhisper package. To run it:
-
-1. Clone the repository
-2. Open `Example/CodeWhisperDemo.xcodeproj` in Xcode
-3. Add your OpenAI API key in the Settings view
-4. Build and run the example app
-
-The example app is located in the `Example/` directory and is **not included** when you install the package via SPM - it's only for demonstration and development purposes.
-
 ## License
 
-[Add your license here]
+MIT License
 
 ## Contributing
 
-[Add contribution guidelines here]
-
-## Support
-
-[Add support information here]
+Contributions welcome! Please open an issue or submit a pull request.

@@ -29,6 +29,7 @@ public struct CodeWhisperButton: View {
 
   // MARK: - Configuration
 
+  private let configuration: CodeWhisperConfiguration
   private let onTranscription: ((String) -> Void)?
   private let onDismiss: (() -> Void)?
 
@@ -56,17 +57,20 @@ public struct CodeWhisperButton: View {
   /// Creates a CodeWhisperButton with a VoiceModeChatInterface for message observation
   /// - Parameters:
   ///   - chatInterface: Interface for sending messages and receiving assistant responses
+  ///   - configuration: Configuration specifying available voice modes
   ///   - isRealtimeSessionActive: Binding to track whether realtime mode is active
   ///   - onTranscription: Optional callback when transcription is complete
   ///   - onDismiss: Optional callback when voice mode is dismissed
   public init(
     chatInterface: VoiceModeChatInterface?,
+    configuration: CodeWhisperConfiguration = .all,
     isRealtimeSessionActive: Binding<Bool> = .constant(false),
     onTranscription: ((String) -> Void)? = nil,
     onDismiss: (() -> Void)? = nil
   ) {
     self.chatInterface = chatInterface
     self.executor = nil
+    self.configuration = configuration
     self._isRealtimeSessionActive = isRealtimeSessionActive
     self.onTranscription = onTranscription
     self.onDismiss = onDismiss
@@ -75,17 +79,20 @@ public struct CodeWhisperButton: View {
   /// Creates a CodeWhisperButton with a ClaudeCodeExecutor for realtime mode
   /// - Parameters:
   ///   - executor: Executor for realtime voice mode
+  ///   - configuration: Configuration specifying available voice modes
   ///   - isRealtimeSessionActive: Binding to track whether realtime mode is active
   ///   - onTranscription: Optional callback when transcription is complete
   ///   - onDismiss: Optional callback when voice mode is dismissed
   public init(
     executor: ClaudeCodeExecutor?,
+    configuration: CodeWhisperConfiguration = .all,
     isRealtimeSessionActive: Binding<Bool> = .constant(false),
     onTranscription: ((String) -> Void)? = nil,
     onDismiss: (() -> Void)? = nil
   ) {
     self.chatInterface = nil
     self.executor = executor
+    self.configuration = configuration
     self._isRealtimeSessionActive = isRealtimeSessionActive
     self.onTranscription = onTranscription
     self.onDismiss = onDismiss
@@ -95,18 +102,21 @@ public struct CodeWhisperButton: View {
   /// - Parameters:
   ///   - chatInterface: Interface for sending messages and receiving assistant responses
   ///   - executor: Executor for realtime voice mode
+  ///   - configuration: Configuration specifying available voice modes
   ///   - isRealtimeSessionActive: Binding to track whether realtime mode is active
   ///   - onTranscription: Optional callback when transcription is complete
   ///   - onDismiss: Optional callback when voice mode is dismissed
   public init(
     chatInterface: VoiceModeChatInterface?,
     executor: ClaudeCodeExecutor?,
+    configuration: CodeWhisperConfiguration = .all,
     isRealtimeSessionActive: Binding<Bool> = .constant(false),
     onTranscription: ((String) -> Void)? = nil,
     onDismiss: (() -> Void)? = nil
   ) {
     self.chatInterface = chatInterface
     self.executor = executor
+    self.configuration = configuration
     self._isRealtimeSessionActive = isRealtimeSessionActive
     self.onTranscription = onTranscription
     self.onDismiss = onDismiss
@@ -133,7 +143,7 @@ public struct CodeWhisperButton: View {
     .onChange(of: settingsManager.ttsConfiguration, handleTTSConfigChange)
     .onChange(of: ttsSpeaker.state, handleTTSStateChange)
     .sheet(isPresented: $showingSettings) {
-      CodeWhisperSettingsSheet()
+      CodeWhisperSettingsSheet(configuration: configuration)
         .environment(settingsManager)
         .environment(mcpManager)
     }
@@ -337,7 +347,14 @@ public struct CodeWhisperButton: View {
   // MARK: - Voice Mode Actions
 
   private func startVoiceMode() {
-    let mode = settingsManager.selectedVoiceMode
+    var mode = settingsManager.selectedVoiceMode
+
+    // Fallback to first available if current selection isn't available
+    if !configuration.availableVoiceModes.contains(mode) {
+      mode = configuration.defaultVoiceMode
+      settingsManager.selectedVoiceMode = mode
+    }
+
     if mode == .realtime {
       // Show realtime mode as a sheet
       showingRealtimeSheet = true
