@@ -31,6 +31,9 @@ public struct CodeWhisperSettingsSheet: View {
           if needsTTSSettings {
             TTSSettingsSection()
           }
+          if needsRealtimeLanguageSettings {
+            RealtimeLanguageSection()
+          }
           APIKeySection()
           if needsClaudeCodeSettings {
             WorkingDirectorySection()
@@ -64,6 +67,11 @@ public struct CodeWhisperSettingsSheet: View {
 
   /// Claude Code settings needed only for Realtime mode
   private var needsClaudeCodeSettings: Bool {
+    configuration.availableVoiceModes.contains(.realtime)
+  }
+
+  /// Realtime language settings needed only for Realtime mode
+  private var needsRealtimeLanguageSettings: Bool {
     configuration.availableVoiceModes.contains(.realtime)
   }
 }
@@ -218,6 +226,89 @@ private struct TTSSettingsSection: View {
       }
     } label: {
       SectionHeader(title: "Text-to-Speech", icon: "speaker.wave.2")
+    }
+  }
+}
+
+// MARK: - Realtime Language Section
+
+private struct RealtimeLanguageSection: View {
+  @Environment(SettingsManager.self) private var settings
+  @State private var customLanguageCode: String = ""
+  @State private var isCustomSelected: Bool = false
+
+  var body: some View {
+    GroupBox {
+      VStack(alignment: .leading, spacing: 12) {
+        // Language picker
+        HStack {
+          Text("Language")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          Spacer()
+          Picker("", selection: Binding(
+            get: { pickerSelection },
+            set: { handlePickerChange($0) }
+          )) {
+            ForEach(RealtimeLanguage.presets, id: \.rawValue) { language in
+              Text(language.displayName).tag(language.rawValue)
+            }
+            Text("Custom").tag("custom")
+          }
+          .labelsHidden()
+          .frame(width: 140)
+        }
+
+        // Custom input field
+        if isCustomSelected {
+          HStack {
+            Text("ISO-639-1 Code")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+            Spacer()
+            TextField("e.g., de, pt, ko", text: $customLanguageCode)
+              .textFieldStyle(.roundedBorder)
+              .frame(width: 100)
+              .onChange(of: customLanguageCode) { _, newValue in
+                let cleaned = newValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                if cleaned.count <= 3 {
+                  settings.realtimeLanguage = .custom(cleaned)
+                }
+              }
+          }
+        }
+
+        // Footer text
+        Text("Improves transcription accuracy and reduces latency.")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+    } label: {
+      SectionHeader(title: "Transcription Language", icon: "globe")
+    }
+    .onAppear {
+      if case .custom(let code) = settings.realtimeLanguage {
+        customLanguageCode = code
+        isCustomSelected = true
+      }
+    }
+  }
+
+  private var pickerSelection: String {
+    if case .custom = settings.realtimeLanguage {
+      return "custom"
+    }
+    return settings.realtimeLanguage.rawValue
+  }
+
+  private func handlePickerChange(_ newValue: String) {
+    if newValue == "custom" {
+      isCustomSelected = true
+      settings.realtimeLanguage = .custom(customLanguageCode)
+    } else if let language = RealtimeLanguage(rawValue: newValue) {
+      isCustomSelected = false
+      customLanguageCode = ""
+      settings.realtimeLanguage = language
     }
   }
 }

@@ -24,9 +24,12 @@ public final class OpenAIServiceManager {
   public init() {}
   
   // MARK: - Configuration Properties
-  
+
   // Model and transcription
   public var transcriptionModel: String = "whisper-1"
+
+  /// Language code for transcription (ISO-639-1 format, e.g., "en", "es"). Nil for auto-detect.
+  public var transcriptionLanguage: String?
   
   // Conversation settings
   public var instructions: String = """
@@ -181,7 +184,7 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
     
     let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
-      inputAudioTranscription: .init(model: transcriptionModel),
+      inputAudioTranscription: .init(model: transcriptionModel, language: transcriptionLanguage),
       instructions: instructions,
       maxResponseOutputTokens: .int(maxResponseOutputTokens),
       modalities: [.audio, .text],

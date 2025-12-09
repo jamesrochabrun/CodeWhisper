@@ -28,6 +28,9 @@ struct CodeWhisperApp: App {
         .onChange(of: settingsManager.apiKey) { _, newValue in
           serviceManager.updateService(apiKey: newValue)
         }
+        .onChange(of: settingsManager.realtimeLanguageCode) { _, newValue in
+          serviceManager.transcriptionLanguage = newValue
+        }
         .onChange(of: mcpServerManager.servers) { _, _ in
           // Notify service manager that MCP servers changed
           serviceManager.mcpServersDidChange()
@@ -35,6 +38,7 @@ struct CodeWhisperApp: App {
         .onAppear {
           // Initialize service on app launch
           serviceManager.updateService(apiKey: settingsManager.apiKey)
+          serviceManager.transcriptionLanguage = settingsManager.realtimeLanguageCode
           serviceManager.setMCPServerManager(mcpServerManager)
         }
     }

@@ -94,6 +94,76 @@ public enum TTSSpeakingState: Equatable, Sendable {
   }
 }
 
+// MARK: - RealtimeLanguage
+
+/// Language option for Realtime API transcription
+public enum RealtimeLanguage: Equatable, Sendable {
+  case auto
+  case english
+  case spanish
+  case french
+  case japanese
+  case chinese
+  case custom(String)
+
+  /// ISO-639-1 language code, or nil for auto-detect
+  public var code: String? {
+    switch self {
+    case .auto: return nil
+    case .english: return "en"
+    case .spanish: return "es"
+    case .french: return "fr"
+    case .japanese: return "ja"
+    case .chinese: return "zh"
+    case .custom(let code): return code.isEmpty ? nil : code
+    }
+  }
+
+  /// Display name for UI
+  public var displayName: String {
+    switch self {
+    case .auto: return "Auto-detect"
+    case .english: return "English"
+    case .spanish: return "Spanish"
+    case .french: return "French"
+    case .japanese: return "Japanese"
+    case .chinese: return "Chinese"
+    case .custom(let code): return code.isEmpty ? "Custom" : "Custom (\(code))"
+    }
+  }
+
+  /// Raw value for persistence
+  public var rawValue: String {
+    switch self {
+    case .auto: return "auto"
+    case .english: return "en"
+    case .spanish: return "es"
+    case .french: return "fr"
+    case .japanese: return "ja"
+    case .chinese: return "zh"
+    case .custom(let code): return code
+    }
+  }
+
+  /// Initialize from raw value
+  public init?(rawValue: String) {
+    switch rawValue {
+    case "auto": self = .auto
+    case "en": self = .english
+    case "es": self = .spanish
+    case "fr": self = .french
+    case "ja": self = .japanese
+    case "zh": self = .chinese
+    default: return nil  // Let caller handle custom values
+    }
+  }
+
+  /// All preset cases (excluding custom)
+  public static var presets: [RealtimeLanguage] {
+    [.auto, .english, .spanish, .french, .japanese, .chinese]
+  }
+}
+
 // MARK: - CodeWhisperConfiguration
 
 /// Configuration for CodeWhisperButton to specify available voice modes

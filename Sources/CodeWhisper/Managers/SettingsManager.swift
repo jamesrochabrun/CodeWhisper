@@ -17,6 +17,7 @@ public final class SettingsManager {
   private static let keychainKey = "openai_api_key"
   private static let ttsConfigKey = "tts_configuration"
   private static let voiceModeKey = "code_whisper_voice_mode"
+  private static let realtimeLanguageKey = "realtime_transcription_language"
 
   /// The current API key - either from environment variable or stored in Keychain
   public var apiKey: String {
@@ -68,6 +69,13 @@ public final class SettingsManager {
     }
   }
 
+  /// Selected transcription language for Realtime API (ISO-639-1 code)
+  public var realtimeLanguage: RealtimeLanguage {
+    didSet {
+      saveRealtimeLanguage()
+    }
+  }
+
   // MARK: - TTS Convenience Properties
 
   /// Current TTS provider
@@ -92,6 +100,11 @@ public final class SettingsManager {
     set {
       ttsConfiguration.openAIModel = newValue
     }
+  }
+
+  /// Returns the ISO-639-1 language code for Realtime API, or nil for auto-detect
+  public var realtimeLanguageCode: String? {
+    realtimeLanguage.code
   }
 
   public var hasValidAPIKey: Bool {
@@ -128,6 +141,9 @@ public final class SettingsManager {
 
     // Load selected voice mode or use default (.stt)
     self.selectedVoiceMode = Self.loadVoiceMode()
+
+    // Load realtime language or use default (.auto)
+    self.realtimeLanguage = Self.loadRealtimeLanguage()
   }
 
   // MARK: - TTS Configuration Persistence
@@ -165,6 +181,19 @@ public final class SettingsManager {
       return .stt  // Default voice mode
     }
     return mode
+  }
+
+  // MARK: - Realtime Language Persistence
+
+  private func saveRealtimeLanguage() {
+    UserDefaults.standard.set(realtimeLanguage.rawValue, forKey: Self.realtimeLanguageKey)
+  }
+
+  private static func loadRealtimeLanguage() -> RealtimeLanguage {
+    guard let rawValue = UserDefaults.standard.string(forKey: realtimeLanguageKey) else {
+      return .auto  // Default to auto-detect
+    }
+    return RealtimeLanguage(rawValue: rawValue) ?? .custom(rawValue)
   }
 
   public func clearAPIKey() {
