@@ -17,7 +17,7 @@ let package = Package(
             targets: ["CodeWhisper"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/jamesrochabrun/SwiftOpenAI.git", exact: "4.4.5"),
+        .package(url: "https://github.com/jamesrochabrun/SwiftOpenAI.git", exact: "4.4.7"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.

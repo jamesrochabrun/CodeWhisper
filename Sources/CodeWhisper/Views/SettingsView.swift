@@ -19,6 +19,7 @@ public struct SettingsView: View {
         APIKeySection()
         WorkingDirectorySection()
         VoiceModeSection()
+        RealtimeVoiceSettingsSection()
         TTSSettingsSection()
         MCPServersSection()
         DangerZoneSection()
@@ -224,6 +225,145 @@ private struct VoiceModeRow: View {
           Text(mode.description)
             .font(.caption)
             .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        if isSelected {
+          Image(systemName: "checkmark")
+            .foregroundStyle(.blue)
+            .fontWeight(.semibold)
+        }
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+// MARK: - Realtime Voice Settings Section
+
+private struct RealtimeVoiceSettingsSection: View {
+  @Environment(SettingsManager.self) private var settings
+  @State private var customLanguageCode: String = ""
+  @State private var showCustomInput: Bool = false
+
+  var body: some View {
+    @Bindable var settings = settings
+
+    Section {
+      ForEach(RealtimeLanguage.presets, id: \.rawValue) { language in
+        LanguageRow(
+          language: language,
+          isSelected: isLanguageSelected(language),
+          onSelect: { selectLanguage(language) }
+        )
+      }
+
+      // Custom language option
+      VStack(alignment: .leading, spacing: 8) {
+        Button(action: { toggleCustomInput() }) {
+          HStack {
+            Image(systemName: "character.textbox")
+              .foregroundStyle(showCustomInput ? .blue : .secondary)
+              .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+              Text("Custom")
+                .foregroundStyle(.primary)
+              Text("Enter ISO-639-1 code")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if case .custom = settings.realtimeLanguage {
+              Image(systemName: "checkmark")
+                .foregroundStyle(.blue)
+                .fontWeight(.semibold)
+            }
+          }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+
+        if showCustomInput {
+          HStack {
+            TextField("e.g., de, pt, ko", text: $customLanguageCode)
+              .textFieldStyle(.roundedBorder)
+              .frame(maxWidth: 120)
+              .onChange(of: customLanguageCode) { _, newValue in
+                let cleaned = newValue.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                if cleaned.count <= 3 {
+                  settings.realtimeLanguage = .custom(cleaned)
+                }
+              }
+
+            if !customLanguageCode.isEmpty {
+              Text("(\(customLanguageCode))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+          .padding(.leading, 32)
+        }
+      }
+    } header: {
+      Text("Realtime Voice")
+    } footer: {
+      Text("Set the transcription language to improve accuracy and reduce latency. Use ISO-639-1 codes (e.g., \"de\" for German, \"pt\" for Portuguese).")
+        .font(.caption)
+    }
+    .onAppear {
+      // Initialize custom input state
+      if case .custom(let code) = settings.realtimeLanguage {
+        customLanguageCode = code
+        showCustomInput = true
+      }
+    }
+  }
+
+  private func isLanguageSelected(_ language: RealtimeLanguage) -> Bool {
+    settings.realtimeLanguage == language
+  }
+
+  private func selectLanguage(_ language: RealtimeLanguage) {
+    settings.realtimeLanguage = language
+    showCustomInput = false
+    customLanguageCode = ""
+  }
+
+  private func toggleCustomInput() {
+    showCustomInput = true
+    if case .custom(let code) = settings.realtimeLanguage {
+      customLanguageCode = code
+    } else {
+      settings.realtimeLanguage = .custom(customLanguageCode)
+    }
+  }
+}
+
+private struct LanguageRow: View {
+  let language: RealtimeLanguage
+  let isSelected: Bool
+  let onSelect: () -> Void
+
+  var body: some View {
+    Button(action: onSelect) {
+      HStack {
+        Image(systemName: "globe")
+          .foregroundStyle(isSelected ? .blue : .secondary)
+          .frame(width: 24)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text(language.displayName)
+            .foregroundStyle(.primary)
+          if let code = language.code {
+            Text(code)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
 
         Spacer()
