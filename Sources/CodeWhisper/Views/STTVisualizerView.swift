@@ -23,12 +23,36 @@ public struct STTVisualizerView: View {
   }
   
   public var body: some View {
-    WaveformBarsView(
-      waveformLevels: effectiveWaveformLevels,
-      barColor: barColor,
-      isActive: state.isRecording
-    )
+    Group {
+      if state.isTranscribing {
+        // Animated wave pulse during transcribing
+        TimelineView(.animation(minimumInterval: 1/30)) { timeline in
+          let time = timeline.date.timeIntervalSinceReferenceDate
+          WaveformBarsView(
+            waveformLevels: wavePulseLevels(time: time),
+            barColor: barColor,
+            isActive: true
+          )
+        }
+      } else {
+        // Normal waveform display for other states
+        WaveformBarsView(
+          waveformLevels: effectiveWaveformLevels,
+          barColor: barColor,
+          isActive: state.isRecording
+        )
+      }
+    }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  /// Wave pulse levels for transcribing animation
+  private func wavePulseLevels(time: Double) -> [Float] {
+    (0..<8).map { index in
+      let offset = Double(index) * 0.3  // Stagger each bar
+      let wave = sin(time * 3.0 + offset)  // ~0.5 sec per cycle
+      return Float(0.2 + 0.15 * wave)  // Range: 0.05 to 0.35
+    }
   }
   
   private var barColor: Color {
