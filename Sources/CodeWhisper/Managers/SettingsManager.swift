@@ -18,6 +18,7 @@ public final class SettingsManager {
   private static let ttsConfigKey = "tts_configuration"
   private static let voiceModeKey = "code_whisper_voice_mode"
   private static let realtimeLanguageKey = "realtime_transcription_language"
+  private static let recordingShortcutKey = "code_whisper_recording_shortcut"
 
   /// The current API key - either from environment variable or stored in Keychain
   public var apiKey: String {
@@ -73,6 +74,13 @@ public final class SettingsManager {
   public var realtimeLanguage: RealtimeLanguage {
     didSet {
       saveRealtimeLanguage()
+    }
+  }
+
+  /// Keyboard shortcut for toggling recording
+  public var recordingShortcut: KeyboardShortcutConfiguration {
+    didSet {
+      saveRecordingShortcut()
     }
   }
 
@@ -144,6 +152,9 @@ public final class SettingsManager {
 
     // Load realtime language or use default (.auto)
     self.realtimeLanguage = Self.loadRealtimeLanguage()
+
+    // Load recording shortcut or use default (Command + Space)
+    self.recordingShortcut = Self.loadRecordingShortcut()
   }
 
   // MARK: - TTS Configuration Persistence
@@ -194,6 +205,33 @@ public final class SettingsManager {
       return .auto  // Default to auto-detect
     }
     return RealtimeLanguage(rawValue: rawValue) ?? .custom(rawValue)
+  }
+
+  // MARK: - Recording Shortcut Persistence
+
+  private func saveRecordingShortcut() {
+    do {
+      let data = try JSONEncoder().encode(recordingShortcut)
+      UserDefaults.standard.set(data, forKey: Self.recordingShortcutKey)
+    } catch {
+      AppLogger.error("Failed to save recording shortcut: \(error)")
+    }
+  }
+
+  private static func loadRecordingShortcut() -> KeyboardShortcutConfiguration {
+    guard let data = UserDefaults.standard.data(forKey: recordingShortcutKey) else {
+      return .default
+    }
+    do {
+      return try JSONDecoder().decode(KeyboardShortcutConfiguration.self, from: data)
+    } catch {
+      AppLogger.error("Failed to load recording shortcut: \(error)")
+      return .default
+    }
+  }
+
+  public func resetRecordingShortcut() {
+    recordingShortcut = .default
   }
 
   public func clearAPIKey() {

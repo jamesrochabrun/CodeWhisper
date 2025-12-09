@@ -138,6 +138,11 @@ public struct CodeWhisperButton: View {
     }
     .clipShape(Capsule())
     .animation(.easeInOut, value: showingVoiceMode)
+    .overlay {
+      // Hidden button for keyboard shortcut
+      keyboardShortcutButton
+        .allowsHitTesting(false)
+    }
     .onAppear(perform: handleOnAppear)
     .onChange(of: settingsManager.apiKey, handleAPIKeyChange)
     .onChange(of: settingsManager.ttsConfiguration, handleTTSConfigChange)
@@ -153,6 +158,38 @@ public struct CodeWhisperButton: View {
     }
     .onChange(of: showingRealtimeSheet) { _, newValue in
       isRealtimeSessionActive = newValue
+    }
+  }
+
+  // MARK: - Keyboard Shortcut
+
+  @ViewBuilder
+  private var keyboardShortcutButton: some View {
+    let shortcut = settingsManager.recordingShortcut
+    Button(action: handleKeyboardShortcut) {
+      EmptyView()
+    }
+    .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.eventModifiers)
+    .opacity(0)
+    .frame(width: 0, height: 0)
+  }
+
+  private func handleKeyboardShortcut() {
+    switch currentPhase {
+    case .idle:
+      if settingsManager.hasValidAPIKey {
+        startVoiceMode()
+      } else {
+        showingSettings = true
+      }
+    case .stt:
+      sttStopAction?()
+    case .waiting:
+      // Do nothing while waiting for response
+      break
+    case .tts:
+      ttsSpeaker.stop()
+      resetToIdle()
     }
   }
 

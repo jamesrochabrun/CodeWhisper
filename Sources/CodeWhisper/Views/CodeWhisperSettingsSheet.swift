@@ -28,6 +28,7 @@ public struct CodeWhisperSettingsSheet: View {
           if configuration.showVoiceModePicker {
             VoiceModeSection(availableModes: configuration.availableVoiceModes)
           }
+          KeyboardShortcutSection()
           if needsTTSSettings {
             TTSSettingsSection()
           }
@@ -90,6 +91,36 @@ private struct SectionHeader: View {
     } icon: {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
+    }
+  }
+}
+
+// MARK: - Keyboard Shortcut Section
+
+private struct KeyboardShortcutSection: View {
+  @Environment(SettingsManager.self) private var settings
+
+  var body: some View {
+    @Bindable var settings = settings
+
+    GroupBox {
+      VStack(alignment: .leading, spacing: 12) {
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Toggle Recording")
+              .font(.body)
+            Text("Press this shortcut to start/stop recording")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer()
+
+          ShortcutRecorderView(shortcut: $settings.recordingShortcut)
+        }
+      }
+    } label: {
+      SectionHeader(title: "Keyboard Shortcut", icon: "command")
     }
   }
 }
