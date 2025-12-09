@@ -29,6 +29,9 @@ public struct CodeWhisperSettingsSheet: View {
             VoiceModeSection(availableModes: configuration.availableVoiceModes)
           }
           KeyboardShortcutSection()
+          #if os(macOS)
+          FloatingSTTSection()
+          #endif
           if needsTTSSettings {
             TTSSettingsSection()
           }
@@ -124,6 +127,129 @@ private struct KeyboardShortcutSection: View {
     }
   }
 }
+
+// MARK: - Floating STT Section (macOS only)
+
+#if os(macOS)
+private struct FloatingSTTSection: View {
+  @Environment(SettingsManager.self) private var settings
+  @State private var hasAccessibilityPermission: Bool = false
+
+  var body: some View {
+    @Bindable var settings = settings
+
+    GroupBox {
+      VStack(alignment: .leading, spacing: 16) {
+        // Floating button toggle
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Floating Voice Button")
+              .font(.body)
+            Text("Show a floating button for voice input in any app")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer()
+
+          Toggle("", isOn: Binding(
+            get: { FloatingSTT.isVisible },
+            set: { newValue in
+              if newValue {
+                // Configure with SettingsManager before showing
+                FloatingSTT.configure(settingsManager: settings)
+                FloatingSTT.show()
+              } else {
+                FloatingSTT.hide()
+              }
+            }
+          ))
+          .labelsHidden()
+        }
+
+        Divider()
+
+        // Accessibility permission status
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Accessibility Permission")
+              .font(.body)
+            Text(hasAccessibilityPermission
+              ? "Text insertion enabled"
+              : "Required for inserting text into other apps")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer()
+
+          if hasAccessibilityPermission {
+            Image(systemName: "checkmark.circle.fill")
+              .foregroundStyle(.green)
+              .font(.system(size: 18))
+          } else {
+            Button("Grant Access") {
+              FloatingSTT.requestAccessibilityPermission()
+              refreshPermission()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+          }
+        }
+
+        Divider()
+
+        // Button size slider
+        VStack(alignment: .leading, spacing: 8) {
+          HStack {
+            Text("Button Size")
+              .font(.body)
+            Spacer()
+            Text("\(Int(settings.floatingSTTConfiguration.buttonSize))pt")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .monospacedDigit()
+          }
+
+          Slider(
+            value: $settings.floatingSTTConfiguration.buttonSize,
+            in: 44...80,
+            step: 4
+          )
+        }
+
+        // Text insertion method
+        HStack {
+          Text("Insertion Method")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          Spacer()
+          Picker("", selection: $settings.floatingSTTConfiguration.preferredInsertionMethod) {
+            Text("Accessibility API").tag(TextInsertionMethod.accessibilityAPI)
+            Text("Clipboard").tag(TextInsertionMethod.clipboardPaste)
+          }
+          .labelsHidden()
+          .frame(width: 160)
+        }
+
+        // Footer text
+        Text("The floating button lets you dictate text into any app. Tap to record, tap again to insert.")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+    } label: {
+      SectionHeader(title: "Floating Voice Button", icon: "bubble.left.and.bubble.right")
+    }
+    .onAppear {
+      refreshPermission()
+    }
+  }
+
+  private func refreshPermission() {
+    hasAccessibilityPermission = FloatingSTT.hasAccessibilityPermission
+  }
+}
+#endif
 
 // MARK: - Voice Mode Section
 

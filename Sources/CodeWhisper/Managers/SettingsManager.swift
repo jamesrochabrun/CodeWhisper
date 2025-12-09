@@ -19,6 +19,9 @@ public final class SettingsManager {
   private static let voiceModeKey = "code_whisper_voice_mode"
   private static let realtimeLanguageKey = "realtime_transcription_language"
   private static let recordingShortcutKey = "code_whisper_recording_shortcut"
+  #if os(macOS)
+  private static let floatingSTTConfigKey = "floating_stt_configuration"
+  #endif
 
   /// The current API key - either from environment variable or stored in Keychain
   public var apiKey: String {
@@ -83,6 +86,15 @@ public final class SettingsManager {
       saveRecordingShortcut()
     }
   }
+
+  #if os(macOS)
+  /// Floating STT button configuration
+  public var floatingSTTConfiguration: FloatingSTTConfiguration {
+    didSet {
+      saveFloatingSTTConfiguration()
+    }
+  }
+  #endif
 
   // MARK: - TTS Convenience Properties
 
@@ -155,6 +167,11 @@ public final class SettingsManager {
 
     // Load recording shortcut or use default (Command + Space)
     self.recordingShortcut = Self.loadRecordingShortcut()
+
+    #if os(macOS)
+    // Load floating STT configuration or use default
+    self.floatingSTTConfiguration = Self.loadFloatingSTTConfiguration()
+    #endif
   }
 
   // MARK: - TTS Configuration Persistence
@@ -233,6 +250,35 @@ public final class SettingsManager {
   public func resetRecordingShortcut() {
     recordingShortcut = .default
   }
+
+  // MARK: - Floating STT Configuration Persistence (macOS only)
+
+  #if os(macOS)
+  private func saveFloatingSTTConfiguration() {
+    do {
+      let data = try JSONEncoder().encode(floatingSTTConfiguration)
+      UserDefaults.standard.set(data, forKey: Self.floatingSTTConfigKey)
+    } catch {
+      AppLogger.error("Failed to save floating STT configuration: \(error)")
+    }
+  }
+
+  private static func loadFloatingSTTConfiguration() -> FloatingSTTConfiguration {
+    guard let data = UserDefaults.standard.data(forKey: floatingSTTConfigKey) else {
+      return .default
+    }
+    do {
+      return try JSONDecoder().decode(FloatingSTTConfiguration.self, from: data)
+    } catch {
+      AppLogger.error("Failed to load floating STT configuration: \(error)")
+      return .default
+    }
+  }
+
+  public func resetFloatingSTTConfiguration() {
+    floatingSTTConfiguration = .default
+  }
+  #endif
 
   public func clearAPIKey() {
     // Only clear if not using environment variable
