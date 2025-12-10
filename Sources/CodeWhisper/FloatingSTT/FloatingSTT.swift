@@ -113,6 +113,12 @@ public enum FloatingSTT {
         shared.toggle()
     }
 
+    /// Shutdown the floating STT mode completely (removes menu bar and button)
+    @MainActor
+    public static func shutdown() {
+        shared.shutdown()
+    }
+
     /// Whether the floating button is currently visible
     @MainActor
     public static var isVisible: Bool {

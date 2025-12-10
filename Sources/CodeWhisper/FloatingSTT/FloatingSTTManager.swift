@@ -66,6 +66,7 @@ public final class FloatingSTTManager {
     private var isConfigured: Bool = false
     private var settingsManager: SettingsManager?
     private var customService: OpenAIService?
+    private var menuBarController: FloatingSTTMenuBarController?
 
     /// Computed service - uses custom if set, otherwise creates from SettingsManager
     private var service: OpenAIService? {
@@ -114,6 +115,7 @@ public final class FloatingSTTManager {
     /// Configure with SettingsManager (recommended - auto-creates OpenAI service from API key)
     public func configure(settingsManager: SettingsManager) {
         self.settingsManager = settingsManager
+        setupMenuBarIfNeeded()
     }
 
     /// Configure with a custom OpenAI service (overrides SettingsManager)
@@ -121,6 +123,12 @@ public final class FloatingSTTManager {
         self.customService = service
         sttManager.configure(service: service)
         isConfigured = true
+        setupMenuBarIfNeeded()
+    }
+
+    private func setupMenuBarIfNeeded() {
+        guard menuBarController == nil else { return }
+        menuBarController = FloatingSTTMenuBarController(floatingManager: self)
     }
 
     private func applyConfiguration() {
@@ -153,6 +161,7 @@ public final class FloatingSTTManager {
         let position = configuration.rememberPosition ? configuration.position : FloatingSTTConfiguration.default.position
         windowController?.show(at: position)
         isVisible = true
+        menuBarController?.updateMenuState()
 
         // Start monitoring for focused text fields
         startFocusMonitoring()
@@ -162,12 +171,20 @@ public final class FloatingSTTManager {
     public func hide() {
         windowController?.hide()
         isVisible = false
+        menuBarController?.updateMenuState()
 
         // Stop monitoring
         stopFocusMonitoring()
 
         // Stop any ongoing recording
         sttManager.stop()
+    }
+
+    /// Shutdown the floating STT mode completely (removes menu bar and button)
+    public func shutdown() {
+        hide()
+        menuBarController?.remove()
+        menuBarController = nil
     }
 
     /// Toggle visibility
