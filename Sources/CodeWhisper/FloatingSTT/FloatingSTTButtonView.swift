@@ -178,12 +178,16 @@ public struct FloatingSTTButtonView: View {
     /// Edge colors (visible as thin dark line under button)
     private var buttonEdgeColors: [Color] {
         if sttManager.state.isRecording {
-            return [Color(red: 0.4, green: 0.05, blue: 0.05), Color(red: 0.3, green: 0.02, blue: 0.02)]
+            // Recording - Muted Teal edge
+            return [Color(red: 0.05, green: 0.25, blue: 0.25), Color(red: 0.02, green: 0.18, blue: 0.18)]
         } else if sttManager.state.isTranscribing {
-            return [Color(red: 0.05, green: 0.1, blue: 0.4), Color(red: 0.02, green: 0.05, blue: 0.3)]
+            // Transcribing - Muted Purple edge
+            return [Color(red: 0.2, green: 0.15, blue: 0.3), Color(red: 0.12, green: 0.08, blue: 0.22)]
         } else if case .error = sttManager.state {
-            return [Color(red: 0.4, green: 0.2, blue: 0.05), Color(red: 0.3, green: 0.15, blue: 0.02)]
+            // Error - Soft Amber edge
+            return [Color(red: 0.35, green: 0.22, blue: 0.08), Color(red: 0.25, green: 0.15, blue: 0.05)]
         } else {
+            // Idle - Neutral gray edge
             return colorScheme == .dark
                 ? [Color(red: 0.12, green: 0.12, blue: 0.14), Color(red: 0.08, green: 0.08, blue: 0.1)]
                 : [Color(red: 0.55, green: 0.55, blue: 0.58), Color(red: 0.45, green: 0.45, blue: 0.48)]
@@ -192,20 +196,20 @@ public struct FloatingSTTButtonView: View {
 
     private var buttonGradientColors: [Color] {
         if sttManager.state.isRecording {
-            // Recording state - red tones
+            // Recording state - Muted Teal (calm, professional)
             return colorScheme == .dark
-                ? [Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.5, green: 0.1, blue: 0.1)]
-                : [Color(red: 0.95, green: 0.3, blue: 0.3), Color(red: 0.75, green: 0.15, blue: 0.15)]
+                ? [Color(red: 0.15, green: 0.55, blue: 0.55), Color(red: 0.08, green: 0.35, blue: 0.35)]
+                : [Color(red: 0.2, green: 0.65, blue: 0.65), Color(red: 0.1, green: 0.45, blue: 0.45)]
         } else if sttManager.state.isTranscribing {
-            // Transcribing state - blue tones
+            // Transcribing state - Muted Purple/Violet
             return colorScheme == .dark
-                ? [Color(red: 0.2, green: 0.4, blue: 0.8), Color(red: 0.1, green: 0.2, blue: 0.5)]
-                : [Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.15, green: 0.3, blue: 0.75)]
+                ? [Color(red: 0.45, green: 0.35, blue: 0.65), Color(red: 0.28, green: 0.2, blue: 0.45)]
+                : [Color(red: 0.55, green: 0.45, blue: 0.75), Color(red: 0.4, green: 0.3, blue: 0.58)]
         } else if case .error = sttManager.state {
-            // Error state - orange tones
+            // Error state - Soft Amber (warm warning)
             return colorScheme == .dark
-                ? [Color(red: 0.8, green: 0.5, blue: 0.2), Color(red: 0.5, green: 0.3, blue: 0.1)]
-                : [Color(red: 0.95, green: 0.6, blue: 0.3), Color(red: 0.75, green: 0.4, blue: 0.15)]
+                ? [Color(red: 0.7, green: 0.5, blue: 0.25), Color(red: 0.45, green: 0.3, blue: 0.12)]
+                : [Color(red: 0.85, green: 0.6, blue: 0.35), Color(red: 0.65, green: 0.42, blue: 0.2)]
         } else {
             // Idle state - neutral/gray tones
             return colorScheme == .dark
