@@ -47,7 +47,7 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     public init(
         buttonWidth: CGFloat = 72,
         buttonHeight: CGFloat = 44,
-        position: CGPoint = CGPoint(x: 100, y: 300),
+        position: CGPoint = CGPoint(x: 20, y: 100),
         rememberPosition: Bool = true,
         preferredInsertionMethod: TextInsertionMethod = .accessibilityAPI,
         showVisualFeedback: Bool = true,
