@@ -58,6 +58,11 @@ public final class FloatingSTTPanel: NSPanel {
         backgroundColor = .clear
         hasShadow = false  // Let SwiftUI handle shadows for better appearance
 
+        // Prevent any window chrome/vibrancy
+        titlebarAppearsTransparent = true
+        titleVisibility = .hidden
+        styleMask.insert(.fullSizeContentView)
+
         // Stay visible when app is not active
         hidesOnDeactivate = false
 
@@ -78,20 +83,31 @@ public final class FloatingSTTPanel: NSPanel {
 
     /// Set the SwiftUI content view
     public func setContentView<Content: View>(_ view: Content) {
-        let hostingView = NSHostingView(rootView: AnyView(view))
-        hostingView.frame = contentView?.bounds ?? .zero
+        // Create a transparent container view
+        let containerView = NSView(frame: contentView?.bounds ?? .zero)
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.clear.cgColor
+        containerView.autoresizingMask = [.width, .height]
+
+        // Create hosting view with transparent background wrapper
+        let transparentView = AnyView(
+            view
+                .background(Color.clear)
+        )
+
+        let hostingView = NSHostingView(rootView: transparentView)
+        hostingView.frame = containerView.bounds
         hostingView.autoresizingMask = [.width, .height]
 
-        // Make hosting view fully transparent
+        // Critical: Remove ALL backgrounds from hosting view
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        hostingView.layer?.isOpaque = false
 
-        // Remove any default background
-        if let layer = hostingView.layer {
-            layer.isOpaque = false
-        }
+        // Add hosting view to container
+        containerView.addSubview(hostingView)
 
-        self.contentView = hostingView
+        self.contentView = containerView
         self.hostingView = hostingView
     }
 

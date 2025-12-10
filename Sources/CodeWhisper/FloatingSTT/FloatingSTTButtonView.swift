@@ -85,13 +85,30 @@ public struct FloatingSTTButtonView: View {
 
     private var button3DBackground: some View {
         ZStack {
-            // Bottom shadow layer (creates depth)
+            // Outer shadow (deep, diffuse) - the "pit" the button sits in
             Capsule()
-                .fill(Color.black.opacity(colorScheme == .dark ? 0.5 : 0.3))
-                .offset(y: isPressed ? 1 : 3)
-                .blur(radius: isPressed ? 2 : 4)
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.6 : 0.25))
+                .offset(y: isPressed ? 2 : 5)
+                .blur(radius: isPressed ? 3 : 8)
 
-            // Main button body with gradient for 3D effect
+            // Mid shadow (sharper, closer)
+            Capsule()
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.4 : 0.2))
+                .offset(y: isPressed ? 1 : 3)
+                .blur(radius: isPressed ? 1 : 3)
+
+            // Button base layer (darker edge visible underneath)
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: buttonEdgeColors,
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .offset(y: isPressed ? 0.5 : 1.5)
+
+            // Main button body with gradient for 3D convex effect
             Capsule()
                 .fill(
                     LinearGradient(
@@ -100,40 +117,77 @@ public struct FloatingSTTButtonView: View {
                         endPoint: .bottom
                     )
                 )
+                // Glossy highlight overlay (top shine)
                 .overlay(
-                    // Inner highlight (top edge)
                     Capsule()
-                        .strokeBorder(
+                        .fill(
                             LinearGradient(
                                 colors: [
-                                    .white.opacity(colorScheme == .dark ? 0.3 : 0.6),
-                                    .white.opacity(0.1),
+                                    .white.opacity(colorScheme == .dark ? 0.25 : 0.5),
+                                    .white.opacity(colorScheme == .dark ? 0.1 : 0.2),
                                     .clear
                                 ],
                                 startPoint: .top,
                                 endPoint: .center
-                            ),
-                            lineWidth: 1
+                            )
+                        )
+                        .padding(2)
+                        .mask(
+                            Capsule()
+                                .padding(2)
                         )
                 )
+                // Inner highlight stroke (top edge bevel)
                 .overlay(
-                    // Inner shadow (bottom edge for depth)
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    .white.opacity(colorScheme == .dark ? 0.4 : 0.7),
+                                    .white.opacity(0.1),
+                                    .clear,
+                                    .clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
+                // Inner shadow stroke (bottom edge depth)
+                .overlay(
                     Capsule()
                         .strokeBorder(
                             LinearGradient(
                                 colors: [
                                     .clear,
-                                    .black.opacity(0.1),
-                                    .black.opacity(colorScheme == .dark ? 0.3 : 0.15)
+                                    .clear,
+                                    .black.opacity(0.15),
+                                    .black.opacity(colorScheme == .dark ? 0.4 : 0.25)
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
-                            lineWidth: 1
+                            lineWidth: 1.5
                         )
                 )
         }
         .frame(width: buttonWidth, height: buttonHeight)
+    }
+
+    /// Edge colors (visible as thin dark line under button)
+    private var buttonEdgeColors: [Color] {
+        if sttManager.state.isRecording {
+            return [Color(red: 0.4, green: 0.05, blue: 0.05), Color(red: 0.3, green: 0.02, blue: 0.02)]
+        } else if sttManager.state.isTranscribing {
+            return [Color(red: 0.05, green: 0.1, blue: 0.4), Color(red: 0.02, green: 0.05, blue: 0.3)]
+        } else if case .error = sttManager.state {
+            return [Color(red: 0.4, green: 0.2, blue: 0.05), Color(red: 0.3, green: 0.15, blue: 0.02)]
+        } else {
+            return colorScheme == .dark
+                ? [Color(red: 0.12, green: 0.12, blue: 0.14), Color(red: 0.08, green: 0.08, blue: 0.1)]
+                : [Color(red: 0.55, green: 0.55, blue: 0.58), Color(red: 0.45, green: 0.45, blue: 0.48)]
+        }
     }
 
     private var buttonGradientColors: [Color] {
