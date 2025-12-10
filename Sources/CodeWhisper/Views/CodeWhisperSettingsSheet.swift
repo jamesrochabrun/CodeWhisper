@@ -205,17 +205,23 @@ private struct FloatingSTTSection: View {
             Text("Button Size")
               .font(.body)
             Spacer()
-            Text("\(Int(settings.floatingSTTConfiguration.buttonSize))pt")
+            Text("\(Int(settings.floatingSTTConfiguration.buttonWidth))×\(Int(settings.floatingSTTConfiguration.buttonHeight))pt")
               .font(.caption)
               .foregroundStyle(.secondary)
               .monospacedDigit()
           }
 
           Slider(
-            value: $settings.floatingSTTConfiguration.buttonSize,
-            in: 44...80,
+            value: $settings.floatingSTTConfiguration.buttonWidth,
+            in: 60...100,
             step: 4
-          )
+          ) {
+            Text("Width")
+          }
+          .onChange(of: settings.floatingSTTConfiguration.buttonWidth) { _, newWidth in
+            // Keep aspect ratio ~1.6:1 (horizontal capsule)
+            settings.floatingSTTConfiguration.buttonHeight = newWidth * 0.6
+          }
         }
 
         // Text insertion method

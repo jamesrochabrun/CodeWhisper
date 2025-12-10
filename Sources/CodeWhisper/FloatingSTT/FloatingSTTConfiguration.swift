@@ -14,8 +14,11 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
     // MARK: - Properties
 
-    /// Size of the floating button (diameter in points)
-    public var buttonSize: CGFloat
+    /// Width of the floating button (horizontal capsule)
+    public var buttonWidth: CGFloat
+
+    /// Height of the floating button (horizontal capsule)
+    public var buttonHeight: CGFloat
 
     /// Last saved position of the button
     public var position: CGPoint
@@ -32,17 +35,26 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     /// Opacity of the button when idle (0.0 - 1.0)
     public var idleOpacity: CGFloat
 
+    // MARK: - Computed Properties
+
+    /// Size as CGSize for convenience
+    public var buttonSize: CGSize {
+        CGSize(width: buttonWidth, height: buttonHeight)
+    }
+
     // MARK: - Initialization
 
     public init(
-        buttonSize: CGFloat = 56,
+        buttonWidth: CGFloat = 72,
+        buttonHeight: CGFloat = 44,
         position: CGPoint = CGPoint(x: 100, y: 300),
         rememberPosition: Bool = true,
         preferredInsertionMethod: TextInsertionMethod = .accessibilityAPI,
         showVisualFeedback: Bool = true,
         idleOpacity: CGFloat = 1.0
     ) {
-        self.buttonSize = buttonSize
+        self.buttonWidth = buttonWidth
+        self.buttonHeight = buttonHeight
         self.position = position
         self.rememberPosition = rememberPosition
         self.preferredInsertionMethod = preferredInsertionMethod
@@ -53,7 +65,9 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case buttonSize
+        case buttonWidth
+        case buttonHeight
+        case buttonSize // Legacy support
         case positionX
         case positionY
         case rememberPosition
@@ -64,7 +78,21 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        buttonSize = try container.decode(CGFloat.self, forKey: .buttonSize)
+
+        // Support both new (width/height) and legacy (size) formats
+        if let width = try container.decodeIfPresent(CGFloat.self, forKey: .buttonWidth),
+           let height = try container.decodeIfPresent(CGFloat.self, forKey: .buttonHeight) {
+            buttonWidth = width
+            buttonHeight = height
+        } else if let legacySize = try container.decodeIfPresent(CGFloat.self, forKey: .buttonSize) {
+            // Migrate from legacy square button to horizontal capsule
+            buttonWidth = legacySize * 1.3  // Wider
+            buttonHeight = legacySize * 0.8 // Shorter
+        } else {
+            buttonWidth = 72
+            buttonHeight = 44
+        }
+
         let x = try container.decode(CGFloat.self, forKey: .positionX)
         let y = try container.decode(CGFloat.self, forKey: .positionY)
         position = CGPoint(x: x, y: y)
@@ -76,7 +104,8 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(buttonSize, forKey: .buttonSize)
+        try container.encode(buttonWidth, forKey: .buttonWidth)
+        try container.encode(buttonHeight, forKey: .buttonHeight)
         try container.encode(position.x, forKey: .positionX)
         try container.encode(position.y, forKey: .positionY)
         try container.encode(rememberPosition, forKey: .rememberPosition)

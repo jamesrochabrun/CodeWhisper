@@ -8,31 +8,49 @@
 #if os(macOS)
 import SwiftUI
 
-/// Compact floating button view for STT recording
+/// Compact floating button view for STT recording with 3D tappable appearance
 public struct FloatingSTTButtonView: View {
 
     // MARK: - Properties
 
     @Bindable var sttManager: STTManager
-    let buttonSize: CGFloat
+    let buttonWidth: CGFloat
+    let buttonHeight: CGFloat
     let canInsertText: Bool
     let onTap: () -> Void
     let onLongPress: (() -> Void)?
 
-    @State private var pulseScale: CGFloat = 1.0
     @State private var isPressed: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Initialization
 
     public init(
         sttManager: STTManager,
-        buttonSize: CGFloat = 56,
+        buttonWidth: CGFloat = 72,
+        buttonHeight: CGFloat = 44,
         canInsertText: Bool = true,
         onTap: @escaping () -> Void,
         onLongPress: (() -> Void)? = nil
     ) {
         self.sttManager = sttManager
-        self.buttonSize = buttonSize
+        self.buttonWidth = buttonWidth
+        self.buttonHeight = buttonHeight
+        self.canInsertText = canInsertText
+        self.onTap = onTap
+        self.onLongPress = onLongPress
+    }
+
+    public init(
+        sttManager: STTManager,
+        buttonSize: CGSize,
+        canInsertText: Bool = true,
+        onTap: @escaping () -> Void,
+        onLongPress: (() -> Void)? = nil
+    ) {
+        self.sttManager = sttManager
+        self.buttonWidth = buttonSize.width
+        self.buttonHeight = buttonSize.height
         self.canInsertText = canInsertText
         self.onTap = onTap
         self.onLongPress = onLongPress
@@ -42,32 +60,16 @@ public struct FloatingSTTButtonView: View {
 
     public var body: some View {
         ZStack {
-            // Background circle with glass effect
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: buttonSize, height: buttonSize)
-                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+            // 3D Button background with depth
+            button3DBackground
 
-            // Recording indicator ring
-            if sttManager.state.isRecording {
-                Circle()
-                    .stroke(Color.red, lineWidth: 3)
-                    .frame(width: buttonSize - 6, height: buttonSize - 6)
-                    .scaleEffect(pulseScale)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                            pulseScale = 1.15
-                        }
-                    }
-                    .onDisappear {
-                        pulseScale = 1.0
-                    }
-            }
-
-            // Content based on state
-            contentView
+            // Waveform bars - always visible, different states
+            waveformContent
+                .frame(width: buttonWidth * 0.6, height: buttonHeight * 0.5)
         }
-        .scaleEffect(isPressed ? 0.92 : 1.0)
+        .frame(width: buttonWidth, height: buttonHeight)
+        .scaleEffect(isPressed ? 0.94 : 1.0)
+        .offset(y: isPressed ? 2 : 0) // Push down effect when pressed
         .animation(.easeInOut(duration: 0.1), value: isPressed)
         .onTapGesture {
             onTap()
@@ -77,106 +79,187 @@ public struct FloatingSTTButtonView: View {
         }, perform: {
             onLongPress?()
         })
-        .frame(width: buttonSize, height: buttonSize)
     }
 
-    // MARK: - Content Views
+    // MARK: - 3D Button Background
 
-    @ViewBuilder
-    private var contentView: some View {
-        switch sttManager.state {
-        case .idle:
-            idleView
-        case .recording:
-            recordingView
-        case .transcribing:
-            transcribingView
-        case .error:
-            errorView
+    private var button3DBackground: some View {
+        ZStack {
+            // Bottom shadow layer (creates depth)
+            Capsule()
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.5 : 0.3))
+                .offset(y: isPressed ? 1 : 3)
+                .blur(radius: isPressed ? 2 : 4)
+
+            // Main button body with gradient for 3D effect
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: buttonGradientColors,
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    // Inner highlight (top edge)
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    .white.opacity(colorScheme == .dark ? 0.3 : 0.6),
+                                    .white.opacity(0.1),
+                                    .clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .center
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .overlay(
+                    // Inner shadow (bottom edge for depth)
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    .clear,
+                                    .black.opacity(0.1),
+                                    .black.opacity(colorScheme == .dark ? 0.3 : 0.15)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        }
+        .frame(width: buttonWidth, height: buttonHeight)
+    }
+
+    private var buttonGradientColors: [Color] {
+        if sttManager.state.isRecording {
+            // Recording state - red tones
+            return colorScheme == .dark
+                ? [Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.5, green: 0.1, blue: 0.1)]
+                : [Color(red: 0.95, green: 0.3, blue: 0.3), Color(red: 0.75, green: 0.15, blue: 0.15)]
+        } else if sttManager.state.isTranscribing {
+            // Transcribing state - blue tones
+            return colorScheme == .dark
+                ? [Color(red: 0.2, green: 0.4, blue: 0.8), Color(red: 0.1, green: 0.2, blue: 0.5)]
+                : [Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.15, green: 0.3, blue: 0.75)]
+        } else if case .error = sttManager.state {
+            // Error state - orange tones
+            return colorScheme == .dark
+                ? [Color(red: 0.8, green: 0.5, blue: 0.2), Color(red: 0.5, green: 0.3, blue: 0.1)]
+                : [Color(red: 0.95, green: 0.6, blue: 0.3), Color(red: 0.75, green: 0.4, blue: 0.15)]
+        } else {
+            // Idle state - neutral/gray tones
+            return colorScheme == .dark
+                ? [Color(red: 0.35, green: 0.35, blue: 0.38), Color(red: 0.2, green: 0.2, blue: 0.22)]
+                : [Color(red: 0.92, green: 0.92, blue: 0.94), Color(red: 0.78, green: 0.78, blue: 0.8)]
         }
     }
 
-    private var idleView: some View {
-        Image(systemName: "mic.fill")
-            .font(.system(size: buttonSize * 0.4))
-            .foregroundStyle(canInsertText ? .primary : .secondary)
+    // MARK: - Waveform Content
+
+    @ViewBuilder
+    private var waveformContent: some View {
+        switch sttManager.state {
+        case .idle:
+            // Static bars at base height
+            FloatingWaveformBars(
+                levels: Array(repeating: Float(0.15), count: 5),
+                barColor: barColor,
+                animate: false
+            )
+        case .recording:
+            // Animated bars based on audio levels
+            FloatingWaveformBars(
+                levels: sttManager.waveformLevels,
+                barColor: barColor,
+                animate: true
+            )
+        case .transcribing:
+            // Wave pulse animation
+            TimelineView(.animation(minimumInterval: 1/30)) { timeline in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                FloatingWaveformBars(
+                    levels: wavePulseLevels(time: time),
+                    barColor: barColor,
+                    animate: true
+                )
+            }
+        case .error:
+            // Static bars showing error state
+            FloatingWaveformBars(
+                levels: Array(repeating: Float(0.1), count: 5),
+                barColor: barColor,
+                animate: false
+            )
+        }
     }
 
-    private var recordingView: some View {
-        MiniWaveformView(
-            levels: sttManager.waveformLevels,
-            barCount: 5,
-            barWidth: 3,
-            spacing: 2,
-            color: .red
-        )
-        .frame(width: buttonSize * 0.5, height: buttonSize * 0.4)
+    private var barColor: Color {
+        switch sttManager.state {
+        case .idle:
+            return colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.5)
+        case .recording:
+            return .white.opacity(0.9)
+        case .transcribing:
+            return .white.opacity(0.85)
+        case .error:
+            return .white.opacity(0.6)
+        }
     }
 
-    private var transcribingView: some View {
-        ProgressView()
-            .scaleEffect(0.8)
-            .progressViewStyle(.circular)
-    }
-
-    private var errorView: some View {
-        Image(systemName: "exclamationmark.triangle.fill")
-            .font(.system(size: buttonSize * 0.35))
-            .foregroundStyle(.orange)
+    /// Wave pulse levels for transcribing animation (same as STTVisualizerView)
+    private func wavePulseLevels(time: Double) -> [Float] {
+        (0..<5).map { index in
+            let offset = Double(index) * 0.4
+            let wave = sin(time * 3.0 + offset)
+            return Float(0.25 + 0.2 * wave)
+        }
     }
 }
 
-// MARK: - Mini Waveform View
+// MARK: - Floating Waveform Bars
 
 /// Compact waveform visualization for the floating button
-struct MiniWaveformView: View {
+struct FloatingWaveformBars: View {
 
     let levels: [Float]
-    let barCount: Int
-    let barWidth: CGFloat
-    let spacing: CGFloat
-    let color: Color
+    let barColor: Color
+    let animate: Bool
 
-    init(
-        levels: [Float],
-        barCount: Int = 5,
-        barWidth: CGFloat = 3,
-        spacing: CGFloat = 2,
-        color: Color = .red
-    ) {
-        self.levels = levels
-        self.barCount = barCount
-        self.barWidth = barWidth
-        self.spacing = spacing
-        self.color = color
-    }
+    private let barCount = 5
+    private let barWidth: CGFloat = 4
+    private let spacing: CGFloat = 3
 
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: spacing) {
                 ForEach(0..<barCount, id: \.self) { index in
                     RoundedRectangle(cornerRadius: barWidth / 2)
-                        .fill(color)
+                        .fill(barColor)
                         .frame(width: barWidth, height: barHeight(for: index, maxHeight: geometry.size.height))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .animation(.easeOut(duration: 0.05), value: levels)
+        .animation(animate ? .easeOut(duration: 0.08) : nil, value: levels)
     }
 
     private func barHeight(for index: Int, maxHeight: CGFloat) -> CGFloat {
         let minHeight: CGFloat = 4
         let level: Float
 
-        // Map from 8 levels to barCount
         if levels.count >= barCount {
             let mappedIndex = Int(Float(index) / Float(barCount) * Float(levels.count))
             level = levels[min(mappedIndex, levels.count - 1)]
         } else if !levels.isEmpty {
             level = levels[index % levels.count]
         } else {
-            level = 0
+            level = 0.15
         }
 
         return minHeight + (maxHeight - minHeight) * CGFloat(level)
@@ -185,27 +268,44 @@ struct MiniWaveformView: View {
 
 // MARK: - Previews
 
-#Preview("Idle") {
+#Preview("Idle - Light") {
     let manager = STTManager()
     return FloatingSTTButtonView(
         sttManager: manager,
-        buttonSize: 56,
+        buttonWidth: 72,
+        buttonHeight: 44,
         canInsertText: true,
         onTap: {}
     )
-    .padding(20)
-    .background(Color.gray.opacity(0.3))
+    .padding(40)
+    .background(Color.gray.opacity(0.2))
+    .preferredColorScheme(.light)
 }
 
-#Preview("Idle - No Target") {
+#Preview("Idle - Dark") {
     let manager = STTManager()
     return FloatingSTTButtonView(
         sttManager: manager,
-        buttonSize: 56,
-        canInsertText: false,
+        buttonWidth: 72,
+        buttonHeight: 44,
+        canInsertText: true,
         onTap: {}
     )
-    .padding(20)
+    .padding(40)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Large Size") {
+    let manager = STTManager()
+    return FloatingSTTButtonView(
+        sttManager: manager,
+        buttonWidth: 96,
+        buttonHeight: 58,
+        canInsertText: true,
+        onTap: {}
+    )
+    .padding(40)
     .background(Color.gray.opacity(0.3))
 }
 #endif

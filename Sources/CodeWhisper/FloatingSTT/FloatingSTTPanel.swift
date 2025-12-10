@@ -20,17 +20,28 @@ public final class FloatingSTTPanel: NSPanel {
     /// The hosting view for SwiftUI content
     private var hostingView: NSHostingView<AnyView>?
 
+    /// Extra padding around button for shadow to render properly
+    private static let shadowPadding: CGFloat = 12
+
     // MARK: - Initialization
 
-    public init(size: CGFloat) {
+    public init(width: CGFloat, height: CGFloat) {
+        // Add padding for shadow
+        let paddedWidth = width + Self.shadowPadding * 2
+        let paddedHeight = height + Self.shadowPadding * 2
+
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: size, height: size),
+            contentRect: NSRect(x: 0, y: 0, width: paddedWidth, height: paddedHeight),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
 
         configurePanel()
+    }
+
+    public convenience init(size: CGSize) {
+        self.init(width: size.width, height: size.height)
     }
 
     // MARK: - Configuration
@@ -42,10 +53,10 @@ public final class FloatingSTTPanel: NSPanel {
         // Collection behavior - appear on all spaces, work with full screen
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        // Transparency
+        // Transparency - no panel shadow, SwiftUI handles shadows
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        hasShadow = false  // Let SwiftUI handle shadows for better appearance
 
         // Stay visible when app is not active
         hidesOnDeactivate = false
@@ -71,17 +82,30 @@ public final class FloatingSTTPanel: NSPanel {
         hostingView.frame = contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
 
-        // Make hosting view transparent
-        hostingView.layer?.backgroundColor = .clear
+        // Make hosting view fully transparent
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        // Remove any default background
+        if let layer = hostingView.layer {
+            layer.isOpaque = false
+        }
 
         self.contentView = hostingView
         self.hostingView = hostingView
     }
 
     /// Update the panel size
-    public func updateSize(_ size: CGFloat) {
+    public func updateSize(_ size: CGSize) {
         let currentOrigin = frame.origin
-        setFrame(NSRect(x: currentOrigin.x, y: currentOrigin.y, width: size, height: size), display: true)
+        let paddedWidth = size.width + Self.shadowPadding * 2
+        let paddedHeight = size.height + Self.shadowPadding * 2
+        setFrame(NSRect(x: currentOrigin.x, y: currentOrigin.y, width: paddedWidth, height: paddedHeight), display: true)
+    }
+
+    /// Update the panel size with width and height
+    public func updateSize(width: CGFloat, height: CGFloat) {
+        updateSize(CGSize(width: width, height: height))
     }
 
     // MARK: - Position
@@ -132,7 +156,8 @@ public final class FloatingSTTWindowController {
     // MARK: - Properties
 
     private var panel: FloatingSTTPanel?
-    private let buttonSize: CGFloat
+    private let buttonWidth: CGFloat
+    private let buttonHeight: CGFloat
     private var contentViewProvider: (() -> AnyView)?
 
     /// Whether the panel is currently visible
@@ -151,8 +176,13 @@ public final class FloatingSTTWindowController {
 
     // MARK: - Initialization
 
-    public init(buttonSize: CGFloat = 56) {
-        self.buttonSize = buttonSize
+    public init(buttonWidth: CGFloat = 72, buttonHeight: CGFloat = 44) {
+        self.buttonWidth = buttonWidth
+        self.buttonHeight = buttonHeight
+    }
+
+    public convenience init(buttonSize: CGSize) {
+        self.init(buttonWidth: buttonSize.width, buttonHeight: buttonSize.height)
     }
 
     // MARK: - Content
@@ -197,14 +227,19 @@ public final class FloatingSTTWindowController {
     }
 
     /// Update the button size
-    public func updateSize(_ size: CGFloat) {
+    public func updateSize(_ size: CGSize) {
         panel?.updateSize(size)
+    }
+
+    /// Update the button size with width and height
+    public func updateSize(width: CGFloat, height: CGFloat) {
+        panel?.updateSize(width: width, height: height)
     }
 
     // MARK: - Private
 
     private func createPanel() {
-        let newPanel = FloatingSTTPanel(size: buttonSize)
+        let newPanel = FloatingSTTPanel(width: buttonWidth, height: buttonHeight)
 
         // Set position change handler
         newPanel.onPositionChanged = { [weak self] position in

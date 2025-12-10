@@ -128,6 +128,11 @@ public final class FloatingSTTManager {
         windowController?.updateSize(configuration.buttonSize)
     }
 
+    /// The button size as CGSize
+    private var buttonSize: CGSize {
+        configuration.buttonSize
+    }
+
     // MARK: - Visibility
 
     /// Show the floating button
@@ -209,7 +214,7 @@ public final class FloatingSTTManager {
     private func createWindowControllerIfNeeded() {
         guard windowController == nil else { return }
 
-        let controller = FloatingSTTWindowController(buttonSize: configuration.buttonSize)
+        let controller = FloatingSTTWindowController(buttonSize: buttonSize)
 
         // Set up position change callback
         controller.onPositionChanged = { [weak self] position in
@@ -222,7 +227,7 @@ public final class FloatingSTTManager {
             guard let self = self else {
                 return FloatingSTTButtonView(
                     sttManager: STTManager(),
-                    buttonSize: 56,
+                    buttonSize: CGSize(width: 72, height: 44),
                     canInsertText: false,
                     onTap: {}
                 )
@@ -230,7 +235,7 @@ public final class FloatingSTTManager {
 
             return FloatingSTTButtonView(
                 sttManager: self.sttManager,
-                buttonSize: self.configuration.buttonSize,
+                buttonSize: self.buttonSize,
                 canInsertText: self.canInsertText,
                 onTap: { [weak self] in
                     self?.toggleRecording()
