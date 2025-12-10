@@ -215,8 +215,8 @@ public struct FloatingSTTButtonView: View {
   /// Edge colors (visible as thin dark line under button)
   private var buttonEdgeColors: [Color] {
     if case .error = sttManager.state {
-      // Error - Soft Amber edge
-      return [Color(red: 0.35, green: 0.22, blue: 0.08), Color(red: 0.25, green: 0.15, blue: 0.05)]
+      // Error - Subtle red edge
+      return [Color(red: 0.45, green: 0.20, blue: 0.20), Color(red: 0.35, green: 0.15, blue: 0.15)]
     } else {
       // Darker metallic edge for sharp definition
       return [Color(red: 0.45, green: 0.47, blue: 0.50), Color(red: 0.35, green: 0.37, blue: 0.40)]
@@ -225,10 +225,10 @@ public struct FloatingSTTButtonView: View {
 
   private var buttonGradientColors: [Color] {
     if case .error = sttManager.state {
-      // Error state - Soft Amber (warm warning)
+      // Error state - Subtle muted red
       return colorScheme == .dark
-      ? [Color(red: 0.7, green: 0.5, blue: 0.25), Color(red: 0.45, green: 0.3, blue: 0.12)]
-      : [Color(red: 0.85, green: 0.6, blue: 0.35), Color(red: 0.65, green: 0.42, blue: 0.2)]
+      ? [Color(red: 0.55, green: 0.25, blue: 0.25), Color(red: 0.40, green: 0.18, blue: 0.18)]
+      : [Color(red: 0.75, green: 0.35, blue: 0.35), Color(red: 0.60, green: 0.28, blue: 0.28)]
     } else if isPushed {
       // Pushed: inverted metallic gradient (concave)
       return [
@@ -259,7 +259,7 @@ public struct FloatingSTTButtonView: View {
         animate: false
       )
     case .recording:
-      // Animated bars based on audio levels - boosted for sensitivity
+      // Animated bars based on audio levels
       FloatingWaveformBars(
         levels: boostedRecordingLevels,
         barColor: barColor,
@@ -318,6 +318,7 @@ public struct FloatingSTTButtonView: View {
       return Float(0.3 + 0.25 * wave)
     }
   }
+
 }
 
 // MARK: - Floating Waveform Bars
