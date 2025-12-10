@@ -67,6 +67,7 @@ public final class FloatingSTTManager {
     private var settingsManager: SettingsManager?
     private var customService: OpenAIService?
     private var menuBarController: FloatingSTTMenuBarController?
+    private var settingsWindowController: FloatingSTTSettingsWindowController?
 
     /// Computed service - uses custom if set, otherwise creates from SettingsManager
     private var service: OpenAIService? {
@@ -158,7 +159,11 @@ public final class FloatingSTTManager {
 
         createWindowControllerIfNeeded()
 
-        let position = configuration.rememberPosition ? configuration.position : FloatingSTTConfiguration.default.position
+        // Use centered default position if this looks like the old hardcoded default (x: 20)
+        // This migrates existing users to the new centered position
+        let savedPosition = configuration.position
+        let isOldDefault = savedPosition.x < 50 && savedPosition.y < 150
+        let position = (configuration.rememberPosition && !isOldDefault) ? savedPosition : FloatingSTTConfiguration.defaultPosition
         windowController?.show(at: position)
         isVisible = true
         menuBarController?.updateMenuState()
@@ -194,6 +199,21 @@ public final class FloatingSTTManager {
         } else {
             show()
         }
+    }
+
+    // MARK: - Settings
+
+    /// Show the settings window
+    public func showSettings() {
+        guard let settingsManager = settingsManager else {
+            AppLogger.warning("FloatingSTTManager: Cannot show settings - no SettingsManager configured.")
+            return
+        }
+
+        if settingsWindowController == nil {
+            settingsWindowController = FloatingSTTSettingsWindowController()
+        }
+        settingsWindowController?.showSettings(settingsManager: settingsManager)
     }
 
     // MARK: - Recording

@@ -48,9 +48,18 @@ public final class STTManager {
   private var recordingFormat: AVAudioFormat?
   
   // MARK: - Initialization
-  
+
   public init() {}
-  
+
+  // MARK: - Preview Support
+
+  #if DEBUG
+  /// Set state for preview purposes only
+  public func setPreviewState(_ newState: STTRecordingState) {
+    self.state = newState
+  }
+  #endif
+
   // MARK: - Configuration
   
   /// Configure the manager with an OpenAI service for transcription

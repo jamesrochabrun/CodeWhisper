@@ -68,6 +68,17 @@ public final class FloatingSTTMenuBarController {
 
         menu.addItem(.separator())
 
+        // Settings
+        let settingsItem = NSMenuItem(
+            title: "Settings...",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
+
         // Quit
         let quitItem = NSMenuItem(
             title: "Quit Floating STT",
@@ -88,6 +99,10 @@ public final class FloatingSTTMenuBarController {
 
     @objc private func hideFloatingButton() {
         floatingManager?.hide()
+    }
+
+    @objc private func openSettings() {
+        floatingManager?.showSettings()
     }
 
     @objc private func quitFloatingSTT() {

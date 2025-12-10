@@ -6,6 +6,7 @@
 //
 
 #if os(macOS)
+import AppKit
 import Foundation
 import CoreGraphics
 
@@ -45,8 +46,8 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     // MARK: - Initialization
 
     public init(
-        buttonWidth: CGFloat = 72,
-        buttonHeight: CGFloat = 44,
+        buttonWidth: CGFloat = 88,
+        buttonHeight: CGFloat = 28,
         position: CGPoint = CGPoint(x: 20, y: 100),
         rememberPosition: Bool = true,
         preferredInsertionMethod: TextInsertionMethod = .accessibilityAPI,
@@ -89,8 +90,8 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
             buttonWidth = legacySize * 1.3  // Wider
             buttonHeight = legacySize * 0.8 // Shorter
         } else {
-            buttonWidth = 72
-            buttonHeight = 44
+            buttonWidth = 88
+            buttonHeight = 28
         }
 
         let x = try container.decode(CGFloat.self, forKey: .positionX)
@@ -115,6 +116,19 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     }
 
     // MARK: - Defaults
+
+    /// Default position: horizontally centered, above dock
+    @MainActor
+    public static var defaultPosition: CGPoint {
+        guard let screen = NSScreen.main else {
+            return CGPoint(x: 20, y: 100)
+        }
+        let screenFrame = screen.visibleFrame  // Excludes dock and menu bar
+        let buttonWidth: CGFloat = 88
+        let x = screenFrame.origin.x + (screenFrame.width - buttonWidth) / 2
+        let y = screenFrame.origin.y + 20  // 20pt above dock
+        return CGPoint(x: x, y: y)
+    }
 
     /// Default configuration
     public static let `default` = FloatingSTTConfiguration()
