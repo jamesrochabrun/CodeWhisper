@@ -22,7 +22,11 @@ public struct FloatingSTTButtonView: View {
   
   @State private var isPressed: Bool = false
   @Environment(\.colorScheme) private var colorScheme
-  
+
+  /// Whether button should appear pushed (recording or transcribing)
+  private var isPushed: Bool {
+    sttManager.state.isRecording || sttManager.state.isTranscribing
+  }
   // MARK: - Initialization
   
   public init(
@@ -88,15 +92,15 @@ public struct FloatingSTTButtonView: View {
       // Outer shadow (deep, diffuse) - the "pit" the button sits in
       Capsule()
         .fill(Color.black.opacity(colorScheme == .dark ? 0.6 : 0.25))
-        .offset(y: isPressed ? 2 : 5)
-        .blur(radius: isPressed ? 3 : 8)
-      
+        .offset(y: (isPressed || isPushed) ? 2 : 5)
+        .blur(radius: (isPressed || isPushed) ? 3 : 8)
+
       // Mid shadow (sharper, closer)
       Capsule()
         .fill(Color.black.opacity(colorScheme == .dark ? 0.4 : 0.2))
-        .offset(y: isPressed ? 1 : 3)
-        .blur(radius: isPressed ? 1 : 3)
-      
+        .offset(y: (isPressed || isPushed) ? 1 : 3)
+        .blur(radius: (isPressed || isPushed) ? 1 : 3)
+
       // Button base layer (darker edge visible underneath)
       Capsule()
         .fill(
@@ -106,7 +110,7 @@ public struct FloatingSTTButtonView: View {
             endPoint: .bottom
           )
         )
-        .offset(y: isPressed ? 0.5 : 1.5)
+        .offset(y: (isPressed || isPushed) ? 0.5 : 1.5)
       
       // Main button body with gradient for 3D convex effect
       Capsule()
@@ -117,36 +121,33 @@ public struct FloatingSTTButtonView: View {
             endPoint: .bottom
           )
         )
-      // Microphone mesh grille pattern (idle state only)
-        .overlay(micMeshOverlay)
-      // Glossy highlight overlay (top shine)
+      // Specular highlight band (sharp metallic reflection)
         .overlay(
           Capsule()
             .fill(
               LinearGradient(
-                colors: [
-                  .white.opacity(colorScheme == .dark ? 0.25 : 0.5),
-                  .white.opacity(colorScheme == .dark ? 0.1 : 0.2),
-                  .clear
+                stops: [
+                  .init(color: .clear, location: 0),
+                  .init(color: .clear, location: 0.1),
+                  .init(color: .white.opacity((isPressed || isPushed) ? 0.2 : 0.6), location: 0.15),
+                  .init(color: .white.opacity((isPressed || isPushed) ? 0.1 : 0.35), location: 0.25),
+                  .init(color: .clear, location: 0.4),
+                  .init(color: .clear, location: 1.0)
                 ],
                 startPoint: .top,
-                endPoint: .center
+                endPoint: .bottom
               )
             )
-            .padding(2)
-            .mask(
-              Capsule()
-                .padding(2)
-            )
+            .padding(1)
         )
-      // Inner highlight stroke (top edge bevel)
+      // Inner highlight stroke (top edge bevel) - dimmed when pushed
         .overlay(
           Capsule()
             .strokeBorder(
               LinearGradient(
                 colors: [
-                  .white.opacity(colorScheme == .dark ? 0.4 : 0.7),
-                  .white.opacity(0.1),
+                  .white.opacity((isPressed || isPushed) ? 0.15 : (colorScheme == .dark ? 0.4 : 0.7)),
+                  .white.opacity((isPressed || isPushed) ? 0.05 : 0.1),
                   .clear,
                   .clear
                 ],
@@ -155,6 +156,20 @@ public struct FloatingSTTButtonView: View {
               ),
               lineWidth: 1.5
             )
+        )
+      // Inner shadow when pushed (concave depth)
+        .overlay(
+          (isPressed || isPushed) ?
+            Capsule()
+              .fill(
+                LinearGradient(
+                  colors: [.black.opacity(0.15), .clear, .clear],
+                  startPoint: .top,
+                  endPoint: .center
+                )
+              )
+              .padding(2)
+            : nil
         )
       // Inner shadow stroke (bottom edge depth)
         .overlay(
@@ -179,61 +194,35 @@ public struct FloatingSTTButtonView: View {
   
   /// Edge colors (visible as thin dark line under button)
   private var buttonEdgeColors: [Color] {
-    if sttManager.state.isRecording {
-      // Recording - Muted Teal edge
-      return [Color(red: 0.05, green: 0.25, blue: 0.25), Color(red: 0.02, green: 0.18, blue: 0.18)]
-    } else if sttManager.state.isTranscribing {
-      // Transcribing - Muted Purple edge
-      return [Color(red: 0.2, green: 0.15, blue: 0.3), Color(red: 0.12, green: 0.08, blue: 0.22)]
-    } else if case .error = sttManager.state {
+    if case .error = sttManager.state {
       // Error - Soft Amber edge
       return [Color(red: 0.35, green: 0.22, blue: 0.08), Color(red: 0.25, green: 0.15, blue: 0.05)]
     } else {
-      // Idle - Silver edge (same for both modes)
-      return [Color(red: 0.55, green: 0.55, blue: 0.58), Color(red: 0.45, green: 0.45, blue: 0.48)]
+      // Darker metallic edge for sharp definition
+      return [Color(red: 0.45, green: 0.47, blue: 0.50), Color(red: 0.35, green: 0.37, blue: 0.40)]
     }
   }
 
   private var buttonGradientColors: [Color] {
-    if sttManager.state.isRecording {
-      // Recording state - Muted Teal (calm, professional)
-      return colorScheme == .dark
-      ? [Color(red: 0.15, green: 0.55, blue: 0.55), Color(red: 0.08, green: 0.35, blue: 0.35)]
-      : [Color(red: 0.2, green: 0.65, blue: 0.65), Color(red: 0.1, green: 0.45, blue: 0.45)]
-    } else if sttManager.state.isTranscribing {
-      // Transcribing state - Muted Purple/Violet
-      return colorScheme == .dark
-      ? [Color(red: 0.45, green: 0.35, blue: 0.65), Color(red: 0.28, green: 0.2, blue: 0.45)]
-      : [Color(red: 0.55, green: 0.45, blue: 0.75), Color(red: 0.4, green: 0.3, blue: 0.58)]
-    } else if case .error = sttManager.state {
+    if case .error = sttManager.state {
       // Error state - Soft Amber (warm warning)
       return colorScheme == .dark
       ? [Color(red: 0.7, green: 0.5, blue: 0.25), Color(red: 0.45, green: 0.3, blue: 0.12)]
       : [Color(red: 0.85, green: 0.6, blue: 0.35), Color(red: 0.65, green: 0.42, blue: 0.2)]
+    } else if isPushed {
+      // Pushed: inverted metallic gradient (concave)
+      return [
+        Color(red: 0.65, green: 0.67, blue: 0.70),  // darker top
+        Color(red: 0.75, green: 0.77, blue: 0.80),  // mid
+        Color(red: 0.88, green: 0.89, blue: 0.92)   // lighter bottom
+      ]
     } else {
-      // Idle state - silver/chrome (same for both modes)
-      return [Color(red: 0.92, green: 0.92, blue: 0.94), Color(red: 0.78, green: 0.78, blue: 0.8)]
-    }
-  }
-
-  // MARK: - Mic Mesh Overlay
-
-  /// Microphone mesh grille pattern overlay (only for idle state)
-  @ViewBuilder
-  private var micMeshOverlay: some View {
-    if case .idle = sttManager.state {
-      Canvas { context, size in
-        let dotSize: CGFloat = 1.5
-        let spacing: CGFloat = 4
-        for x in stride(from: spacing / 2, to: size.width, by: spacing) {
-          for y in stride(from: spacing / 2, to: size.height, by: spacing) {
-            let rect = CGRect(x: x - dotSize / 2, y: y - dotSize / 2, width: dotSize, height: dotSize)
-            context.fill(Circle().path(in: rect), with: .color(.black.opacity(0.08)))
-          }
-        }
-      }
-      .clipShape(Capsule())
-      .allowsHitTesting(false)
+      // Idle: classic aluminum gradient (convex)
+      return [
+        Color(red: 0.95, green: 0.96, blue: 0.98),  // bright top (almost white)
+        Color(red: 0.82, green: 0.84, blue: 0.87),  // mid gray
+        Color(red: 0.70, green: 0.72, blue: 0.75)   // darker bottom
+      ]
     }
   }
 
@@ -243,16 +232,16 @@ public struct FloatingSTTButtonView: View {
   private var waveformContent: some View {
     switch sttManager.state {
     case .idle:
-      // Static bars at base height
+      // Uniform height bars for idle state
       FloatingWaveformBars(
-        levels: Array(repeating: Float(0.15), count: 5),
+        levels: Array(repeating: Float(0.4), count: 7),
         barColor: barColor,
         animate: false
       )
     case .recording:
-      // Animated bars based on audio levels
+      // Animated bars based on audio levels - boosted for sensitivity
       FloatingWaveformBars(
-        levels: sttManager.waveformLevels,
+        levels: boostedRecordingLevels,
         barColor: barColor,
         animate: true
       )
@@ -277,25 +266,36 @@ public struct FloatingSTTButtonView: View {
   }
   
   private var barColor: Color {
-    switch sttManager.state {
-    case .idle:
-      // Dark bars on silver background (same for both modes)
-      return .black.opacity(0.5)
-    case .recording:
-      return .white.opacity(0.9)
-    case .transcribing:
-      return .white.opacity(0.85)
-    case .error:
+    if case .error = sttManager.state {
+      // White bars on amber background
       return .white.opacity(0.6)
+    } else {
+      // Dark bars on silver for idle/recording/transcribing
+      return .black.opacity(0.5)
     }
   }
   
-  /// Wave pulse levels for transcribing animation (same as STTVisualizerView)
+  /// Boosted recording levels with base height and amplification
+  private var boostedRecordingLevels: [Float] {
+    let rawLevels = sttManager.waveformLevels
+    let baseLevel: Float = 0.35  // Minimum bar height (same as idle)
+    let amplification: Float = 3.0  // Boost sensitivity
+
+    // Map 8 raw levels to 7 bars
+    return (0..<7).map { index in
+      let mappedIndex = Int(Float(index) / 7.0 * Float(rawLevels.count))
+      let rawLevel = rawLevels[min(mappedIndex, rawLevels.count - 1)]
+      // Amplify and add base level, clamp to 0-1
+      return min(1.0, baseLevel + rawLevel * amplification)
+    }
+  }
+
+  /// Wave pulse levels for transcribing animation (7 bars, faster)
   private func wavePulseLevels(time: Double) -> [Float] {
-    (0..<5).map { index in
-      let offset = Double(index) * 0.4
-      let wave = sin(time * 3.0 + offset)
-      return Float(0.25 + 0.2 * wave)
+    (0..<7).map { index in
+      let offset = Double(index) * 0.25  // tighter offset
+      let wave = sin(time * 6.0 + offset)  // faster wave
+      return Float(0.3 + 0.25 * wave)
     }
   }
 }
@@ -304,15 +304,15 @@ public struct FloatingSTTButtonView: View {
 
 /// Compact waveform visualization for the floating button
 struct FloatingWaveformBars: View {
-  
+
   let levels: [Float]
   let barColor: Color
   let animate: Bool
-  
-  private let barCount = 5
-  private let barWidth: CGFloat = 4
-  private let spacing: CGFloat = 3
-  
+
+  private let barCount = 7
+  private let barWidth: CGFloat = 3
+  private let spacing: CGFloat = 2
+
   var body: some View {
     GeometryReader { geometry in
       HStack(spacing: spacing) {
@@ -324,22 +324,22 @@ struct FloatingWaveformBars: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .animation(animate ? .easeOut(duration: 0.08) : nil, value: levels)
+    .animation(animate ? .spring(response: 0.08, dampingFraction: 0.5) : nil, value: levels)
   }
-  
+
   private func barHeight(for index: Int, maxHeight: CGFloat) -> CGFloat {
-    let minHeight: CGFloat = 4
+    let minHeight: CGFloat = 6
     let level: Float
-    
+
     if levels.count >= barCount {
       let mappedIndex = Int(Float(index) / Float(barCount) * Float(levels.count))
       level = levels[min(mappedIndex, levels.count - 1)]
     } else if !levels.isEmpty {
       level = levels[index % levels.count]
     } else {
-      level = 0.15
+      level = 0.3
     }
-    
+
     return minHeight + (maxHeight - minHeight) * CGFloat(level)
   }
 }
