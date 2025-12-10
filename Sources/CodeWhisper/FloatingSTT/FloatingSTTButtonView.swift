@@ -27,6 +27,11 @@ public struct FloatingSTTButtonView: View {
   private var isPushed: Bool {
     sttManager.state.isRecording || sttManager.state.isTranscribing
   }
+
+  /// Whether currently transcribing (for pulse animation)
+  private var isTranscribing: Bool {
+    sttManager.state.isTranscribing
+  }
   // MARK: - Initialization
   
   public init(
@@ -86,8 +91,23 @@ public struct FloatingSTTButtonView: View {
   }
   
   // MARK: - 3D Button Background
-  
+
+  @ViewBuilder
   private var button3DBackground: some View {
+    if isTranscribing {
+      // Pulsing brightness animation for transcribing state
+      TimelineView(.animation(minimumInterval: 1/30)) { timeline in
+        let time = timeline.date.timeIntervalSinceReferenceDate
+        let pulse = sin(time * 3.5)  // Faster pulse
+        button3DBackgroundContent
+          .brightness(pulse * 0.2)  // Strong range: -0.2 to +0.2
+      }
+    } else {
+      button3DBackgroundContent
+    }
+  }
+
+  private var button3DBackgroundContent: some View {
     ZStack {
       // Outer shadow (deep, diffuse) - the "pit" the button sits in
       Capsule()
@@ -111,7 +131,7 @@ public struct FloatingSTTButtonView: View {
           )
         )
         .offset(y: (isPressed || isPushed) ? 0.5 : 1.5)
-      
+
       // Main button body with gradient for 3D convex effect
       Capsule()
         .fill(
