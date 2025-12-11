@@ -21,8 +21,8 @@ public final class FloatingSTTSettingsWindowController {
     // MARK: - Public Methods
 
     /// Shows the settings window
-    /// - Parameter settingsManager: The settings manager to use for the settings view
-    public func showSettings(settingsManager: SettingsManager) {
+    /// - Parameter manager: The FloatingSTT manager to use for the settings view
+    public func showSettings(manager: FloatingSTTManager) {
         if let existingWindow = window, existingWindow.isVisible {
             // Bring existing window to front
             existingWindow.makeKeyAndOrderFront(nil)
@@ -30,9 +30,8 @@ public final class FloatingSTTSettingsWindowController {
             return
         }
 
-        // Create the SwiftUI view with environment
-        let settingsView = FloatingSTTSettingsView()
-            .environment(settingsManager)
+        // Create the SwiftUI view with manager
+        let settingsView = FloatingSTTSettingsView(manager: manager)
 
         // Create hosting controller
         let hosting = NSHostingController(rootView: AnyView(settingsView))
@@ -40,7 +39,7 @@ public final class FloatingSTTSettingsWindowController {
 
         // Create window
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 450, height: 400),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false

@@ -18,16 +18,14 @@ import SwiftOpenAI
 ///
 /// ## Usage
 ///
-/// ### Simple (recommended):
+/// ### Simple (with API key):
 /// ```swift
-/// // Configure with SettingsManager - service is auto-created from API key
-/// FloatingSTT.configure(settingsManager: settingsManager)
-/// FloatingSTT.show()  // Just works!
+/// FloatingSTT.configure(apiKey: "sk-...")
+/// FloatingSTT.show()
 /// ```
 ///
 /// ### Advanced (custom service):
 /// ```swift
-/// // Override with custom OpenAI service if needed
 /// FloatingSTT.configure(service: customOpenAIService)
 /// FloatingSTT.show()
 /// ```
@@ -58,30 +56,30 @@ public enum FloatingSTT {
 
     // MARK: - Configuration
 
-    /// Configure with SettingsManager (recommended)
+    /// Configure with an API key
     ///
-    /// The OpenAI service will be auto-created from the API key stored in SettingsManager.
-    /// - Parameter settingsManager: The settings manager containing the API key
+    /// Creates an OpenAI service internally using the provided API key.
+    /// - Parameter apiKey: The OpenAI API key to use for Whisper transcription
     @MainActor
-    public static func configure(settingsManager: SettingsManager) {
-        shared.configure(settingsManager: settingsManager)
+    public static func configure(apiKey: String) {
+        shared.configure(apiKey: apiKey)
     }
 
-    /// Configure with a custom OpenAI service (overrides SettingsManager)
+    /// Configure with a custom OpenAI service
     /// - Parameter service: The OpenAI service to use for Whisper transcription
     @MainActor
     public static func configure(service: OpenAIService) {
         shared.configure(service: service)
     }
 
-    /// Configure with a custom configuration and SettingsManager
+    /// Configure with a custom configuration and API key
     /// - Parameters:
-    ///   - settingsManager: The settings manager containing the API key
+    ///   - apiKey: The OpenAI API key to use
     ///   - configuration: Custom configuration for the floating button
     @MainActor
-    public static func configure(settingsManager: SettingsManager, configuration: FloatingSTTConfiguration) {
+    public static func configure(apiKey: String, configuration: FloatingSTTConfiguration) {
         shared.configuration = configuration
-        shared.configure(settingsManager: settingsManager)
+        shared.configure(apiKey: apiKey)
     }
 
     /// Configure with a custom configuration and OpenAI service
@@ -101,6 +99,7 @@ public enum FloatingSTT {
     public static func show() {
         shared.show()
     }
+
     /// Hide the floating STT button
     @MainActor
     public static func hide() {
@@ -123,6 +122,14 @@ public enum FloatingSTT {
     @MainActor
     public static var isVisible: Bool {
         shared.isVisible
+    }
+
+    // MARK: - Settings
+
+    /// Show the settings window
+    @MainActor
+    public static func showSettings() {
+        shared.showSettings()
     }
 
     // MARK: - Permissions

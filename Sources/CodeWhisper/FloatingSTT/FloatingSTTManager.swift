@@ -33,9 +33,10 @@ public final class FloatingSTTManager {
     /// The last transcribed text
     public private(set) var lastTranscribedText: String?
 
-    /// Current configuration
+    /// Current configuration (auto-persisted to UserDefaults)
     public var configuration: FloatingSTTConfiguration {
         didSet {
+            configuration.save()
             applyConfiguration()
             onConfigurationChanged?(configuration)
         }
@@ -58,38 +59,32 @@ public final class FloatingSTTManager {
     public let permissionManager: AccessibilityPermissionManager
     private let focusDetector: SystemFocusDetector
     private let textInserter: TextInserter
+    private let promptEnhancer: PromptEnhancer
     private var windowController: FloatingSTTWindowController?
 
     // MARK: - Private State
 
     private var focusCheckTimer: Timer?
     private var isConfigured: Bool = false
-    private var settingsManager: SettingsManager?
     private var customService: OpenAIService?
     private var menuBarController: FloatingSTTMenuBarController?
     private var settingsWindowController: FloatingSTTSettingsWindowController?
 
-    /// Computed service - uses custom if set, otherwise creates from SettingsManager
+    /// The configured OpenAI service
     private var service: OpenAIService? {
-        // Priority 1: Custom injected service
-        if let custom = customService {
-            return custom
-        }
-        // Priority 2: Create from SettingsManager API key
-        guard let settings = settingsManager, settings.hasValidAPIKey else {
-            return nil
-        }
-        return OpenAIServiceFactory.service(apiKey: settings.apiKey)
+        return customService
     }
 
     // MARK: - Initialization
 
-    public init(configuration: FloatingSTTConfiguration = .default) {
-        self.configuration = configuration
+    /// Initialize with optional configuration override. If nil, loads from UserDefaults.
+    public init(configuration: FloatingSTTConfiguration? = nil) {
+        self.configuration = configuration ?? FloatingSTTConfiguration.load()
         self.sttManager = STTManager()
         self.permissionManager = AccessibilityPermissionManager()
         self.focusDetector = SystemFocusDetector()
         self.textInserter = TextInserter()
+        self.promptEnhancer = PromptEnhancer()
 
         setup()
     }
@@ -113,16 +108,17 @@ public final class FloatingSTTManager {
 
     // MARK: - Configuration
 
-    /// Configure with SettingsManager (recommended - auto-creates OpenAI service from API key)
-    public func configure(settingsManager: SettingsManager) {
-        self.settingsManager = settingsManager
-        setupMenuBarIfNeeded()
+    /// Configure with an API key (creates OpenAI service internally)
+    public func configure(apiKey: String) {
+        let service = OpenAIServiceFactory.service(apiKey: apiKey)
+        configure(service: service)
     }
 
-    /// Configure with a custom OpenAI service (overrides SettingsManager)
+    /// Configure with a custom OpenAI service
     public func configure(service: OpenAIService) {
         self.customService = service
         sttManager.configure(service: service)
+        promptEnhancer.configure(service: service)
         isConfigured = true
         setupMenuBarIfNeeded()
     }
@@ -146,14 +142,8 @@ public final class FloatingSTTManager {
 
     /// Show the floating button
     public func show() {
-        // Auto-configure STT manager if we have a service (from SettingsManager or custom)
-        if !isConfigured, let service = self.service {
-            sttManager.configure(service: service)
-            isConfigured = true
-        }
-
         guard isConfigured else {
-            AppLogger.warning("FloatingSTTManager: Cannot show - no API key available. Call configure(settingsManager:) or configure(service:) first.")
+            AppLogger.warning("FloatingSTTManager: Cannot show - not configured. Call configure(apiKey:) or configure(service:) first.")
             return
         }
 
@@ -205,15 +195,10 @@ public final class FloatingSTTManager {
 
     /// Show the settings window
     public func showSettings() {
-        guard let settingsManager = settingsManager else {
-            AppLogger.warning("FloatingSTTManager: Cannot show settings - no SettingsManager configured.")
-            return
-        }
-
         if settingsWindowController == nil {
             settingsWindowController = FloatingSTTSettingsWindowController()
         }
-        settingsWindowController?.showSettings(settingsManager: settingsManager)
+        settingsWindowController?.showSettings(manager: self)
     }
 
     // MARK: - Recording
@@ -290,16 +275,31 @@ public final class FloatingSTTManager {
     private func handleTranscription(_ text: String) async {
         lastTranscribedText = text
 
+        // Enhance text if enabled (stays in transcribing state during enhancement)
+        var finalText = text
+        if configuration.enhancementEnabled {
+            do {
+                finalText = try await promptEnhancer.enhance(
+                    text: text,
+                    systemPrompt: configuration.enhancementPrompt
+                )
+                AppLogger.info("[PromptEnhancer] '\(text)' → '\(finalText)'")
+            } catch {
+                // Enhancement failed, use raw text
+                AppLogger.warning("[PromptEnhancer] Enhancement failed: \(error.localizedDescription)")
+            }
+        }
+
         // Detect focused text element
         let focusedElement = focusDetector.getFocusedTextElement()
 
         // Insert text
         let result: TextInsertionResult
         if hasAccessibilityPermission, let element = focusedElement {
-            result = await textInserter.insertText(text, into: element.axElement)
+            result = await textInserter.insertText(finalText, into: element.axElement)
         } else {
             // Fall back to clipboard paste
-            result = await textInserter.insertText(text, into: nil)
+            result = await textInserter.insertText(finalText, into: nil)
         }
 
         lastInsertionResult = result
@@ -307,7 +307,7 @@ public final class FloatingSTTManager {
         // Notify
         switch result {
         case .success:
-            onTextInserted?(text, result)
+            onTextInserted?(finalText, result)
         case .failure(let error):
             onError?(error)
         }

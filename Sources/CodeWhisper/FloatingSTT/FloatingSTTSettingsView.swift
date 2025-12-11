@@ -10,20 +10,21 @@ import AppKit
 import SwiftUI
 
 /// Settings view for Floating STT mode
-/// Contains button configuration, keyboard shortcut, and API key settings
+/// Contains accessibility status and prompt enhancement settings
 public struct FloatingSTTSettingsView: View {
 
-    @Environment(SettingsManager.self) private var settings
+    @Bindable var manager: FloatingSTTManager
     @State private var hasAccessibilityPermission: Bool = false
 
-    public init() {}
+    public init(manager: FloatingSTTManager) {
+        self.manager = manager
+    }
 
     public var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 FloatingButtonSection(hasAccessibilityPermission: $hasAccessibilityPermission)
-                KeyboardShortcutSection()
-                APIKeySection()
+                PromptEnhancementSection(manager: manager)
             }
             .padding(24)
         }
@@ -56,12 +57,9 @@ private struct SectionHeader: View {
 // MARK: - Floating Button Section
 
 private struct FloatingButtonSection: View {
-    @Environment(SettingsManager.self) private var settings
     @Binding var hasAccessibilityPermission: Bool
 
     var body: some View {
-        @Bindable var settings = settings
-
         GroupBox {
             VStack(alignment: .leading, spacing: 16) {
                 // Accessibility permission status
@@ -103,88 +101,74 @@ private struct FloatingButtonSection: View {
     }
 }
 
-// MARK: - Keyboard Shortcut Section
+// MARK: - Prompt Enhancement Section
 
-private struct KeyboardShortcutSection: View {
-    @Environment(SettingsManager.self) private var settings
+private struct PromptEnhancementSection: View {
+    @Bindable var manager: FloatingSTTManager
+    @State private var customPrompt: String = ""
 
     var body: some View {
-        @Bindable var settings = settings
-
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
+                // Toggle for enhancement
+                Toggle(isOn: $manager.configuration.enhancementEnabled) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Toggle Recording")
+                        Text("Enhance with AI")
                             .font(.body)
-                        Text("Press this shortcut to start/stop recording")
+                        Text("Use GPT-4o-mini to improve transcription before insertion")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-
-                    Spacer()
-
-                    ShortcutRecorderView(shortcut: $settings.recordingShortcut)
                 }
-            }
-            .padding(8)
-        } label: {
-            SectionHeader(title: "Keyboard Shortcut", icon: "command")
-        }
-    }
-}
 
-// MARK: - API Key Section
+                // Show custom prompt options when enabled
+                if manager.configuration.enhancementEnabled {
+                    Divider()
 
-private struct APIKeySection: View {
-    @Environment(SettingsManager.self) private var settings
-
-    var body: some View {
-        @Bindable var settings = settings
-
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                if settings.isUsingEnvironmentVariable {
-                    // Environment variable state
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .foregroundStyle(.green)
-                            .font(.system(size: 24))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Using Environment Variable")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text("OPENAI_API_KEY")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } else {
-                    // API Key input
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            SecureField("Enter your OpenAI API Key", text: $settings.apiKey)
-                                .textFieldStyle(.roundedBorder)
-
-                            if settings.hasValidAPIKey {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                    .font(.system(size: 18))
-                            }
-                        }
-
-                        if settings.hasValidAPIKey {
-                            Label("Stored securely in Keychain", systemImage: "lock.shield")
+                            Text("System Prompt")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                            Spacer()
+
+                            Button("Reset to Default") {
+                                customPrompt = PromptEnhancer.defaultSystemPrompt
+                                manager.configuration.customEnhancementPrompt = nil
+                            }
+                            .buttonStyle(.link)
+                            .controlSize(.small)
+                            .disabled(manager.configuration.customEnhancementPrompt == nil)
                         }
+
+                        TextEditor(text: $customPrompt)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(height: 100)
+                            .scrollContentBackground(.hidden)
+                            .background(Color(NSColor.textBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                            )
+                            .onChange(of: customPrompt) { _, newValue in
+                                if newValue.isEmpty || newValue == PromptEnhancer.defaultSystemPrompt {
+                                    manager.configuration.customEnhancementPrompt = nil
+                                } else {
+                                    manager.configuration.customEnhancementPrompt = newValue
+                                }
+                            }
                     }
                 }
             }
             .padding(8)
         } label: {
-            SectionHeader(title: "OpenAI API Key", icon: "key")
+            SectionHeader(title: "Prompt Enhancement", icon: "wand.and.stars")
+        }
+        .onAppear {
+            // Initialize custom prompt from configuration or default
+            customPrompt = manager.configuration.customEnhancementPrompt ?? PromptEnhancer.defaultSystemPrompt
         }
     }
 }
@@ -192,7 +176,6 @@ private struct APIKeySection: View {
 // MARK: - Preview
 
 #Preview {
-    FloatingSTTSettingsView()
-        .environment(SettingsManager())
+    FloatingSTTSettingsView(manager: FloatingSTTManager())
 }
 #endif

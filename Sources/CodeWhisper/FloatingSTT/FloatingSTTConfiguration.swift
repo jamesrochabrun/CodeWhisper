@@ -13,13 +13,15 @@ import CoreGraphics
 /// Configuration for the floating STT button
 public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
+    // MARK: - Constants
+
+    /// Width of the floating button (horizontal capsule) - fixed size
+    public let buttonWidth: CGFloat = 88
+
+    /// Height of the floating button (horizontal capsule) - fixed size
+    public let buttonHeight: CGFloat = 28
+
     // MARK: - Properties
-
-    /// Width of the floating button (horizontal capsule)
-    public var buttonWidth: CGFloat
-
-    /// Height of the floating button (horizontal capsule)
-    public var buttonHeight: CGFloat
 
     /// Last saved position of the button
     public var position: CGPoint
@@ -36,7 +38,21 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     /// Opacity of the button when idle (0.0 - 1.0)
     public var idleOpacity: CGFloat
 
+    /// Whether prompt enhancement is enabled
+    public var enhancementEnabled: Bool
+
+    /// Custom system prompt for enhancement (nil = use default)
+    public var customEnhancementPrompt: String?
+
     // MARK: - Computed Properties
+
+    /// Returns the enhancement prompt to use (custom or default)
+    public var enhancementPrompt: String {
+        if let custom = customEnhancementPrompt, !custom.isEmpty {
+            return custom
+        }
+        return PromptEnhancer.defaultSystemPrompt
+    }
 
     /// Size as CGSize for convenience
     public var buttonSize: CGSize {
@@ -46,53 +62,40 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     // MARK: - Initialization
 
     public init(
-        buttonWidth: CGFloat = 88,
-        buttonHeight: CGFloat = 28,
         position: CGPoint = CGPoint(x: 20, y: 100),
         rememberPosition: Bool = true,
         preferredInsertionMethod: TextInsertionMethod = .accessibilityAPI,
         showVisualFeedback: Bool = true,
-        idleOpacity: CGFloat = 1.0
+        idleOpacity: CGFloat = 1.0,
+        enhancementEnabled: Bool = false,
+        customEnhancementPrompt: String? = nil
     ) {
-        self.buttonWidth = buttonWidth
-        self.buttonHeight = buttonHeight
         self.position = position
         self.rememberPosition = rememberPosition
         self.preferredInsertionMethod = preferredInsertionMethod
         self.showVisualFeedback = showVisualFeedback
         self.idleOpacity = idleOpacity
+        self.enhancementEnabled = enhancementEnabled
+        self.customEnhancementPrompt = customEnhancementPrompt
     }
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case buttonWidth
-        case buttonHeight
-        case buttonSize // Legacy support
         case positionX
         case positionY
         case rememberPosition
         case preferredInsertionMethod
         case showVisualFeedback
         case idleOpacity
+        case enhancementEnabled
+        case customEnhancementPrompt
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        // Support both new (width/height) and legacy (size) formats
-        if let width = try container.decodeIfPresent(CGFloat.self, forKey: .buttonWidth),
-           let height = try container.decodeIfPresent(CGFloat.self, forKey: .buttonHeight) {
-            buttonWidth = width
-            buttonHeight = height
-        } else if let legacySize = try container.decodeIfPresent(CGFloat.self, forKey: .buttonSize) {
-            // Migrate from legacy square button to horizontal capsule
-            buttonWidth = legacySize * 1.3  // Wider
-            buttonHeight = legacySize * 0.8 // Shorter
-        } else {
-            buttonWidth = 88
-            buttonHeight = 28
-        }
+        // Button size is now hardcoded (buttonWidth/buttonHeight are constants)
 
         let x = try container.decode(CGFloat.self, forKey: .positionX)
         let y = try container.decode(CGFloat.self, forKey: .positionY)
@@ -101,18 +104,21 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         preferredInsertionMethod = try container.decode(TextInsertionMethod.self, forKey: .preferredInsertionMethod)
         showVisualFeedback = try container.decode(Bool.self, forKey: .showVisualFeedback)
         idleOpacity = try container.decodeIfPresent(CGFloat.self, forKey: .idleOpacity) ?? 1.0
+        enhancementEnabled = try container.decodeIfPresent(Bool.self, forKey: .enhancementEnabled) ?? false
+        customEnhancementPrompt = try container.decodeIfPresent(String.self, forKey: .customEnhancementPrompt)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(buttonWidth, forKey: .buttonWidth)
-        try container.encode(buttonHeight, forKey: .buttonHeight)
+        // Button size is hardcoded, no need to persist
         try container.encode(position.x, forKey: .positionX)
         try container.encode(position.y, forKey: .positionY)
         try container.encode(rememberPosition, forKey: .rememberPosition)
         try container.encode(preferredInsertionMethod, forKey: .preferredInsertionMethod)
         try container.encode(showVisualFeedback, forKey: .showVisualFeedback)
         try container.encode(idleOpacity, forKey: .idleOpacity)
+        try container.encode(enhancementEnabled, forKey: .enhancementEnabled)
+        try container.encodeIfPresent(customEnhancementPrompt, forKey: .customEnhancementPrompt)
     }
 
     // MARK: - Defaults
@@ -132,5 +138,33 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
     /// Default configuration
     public static let `default` = FloatingSTTConfiguration()
+
+    // MARK: - Persistence
+
+    /// UserDefaults key for storing configuration (same as previously used by SettingsManager)
+    private static let storageKey = "floating_stt_configuration"
+
+    /// Load configuration from UserDefaults
+    public static func load() -> FloatingSTTConfiguration {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else {
+            return .default
+        }
+        do {
+            return try JSONDecoder().decode(FloatingSTTConfiguration.self, from: data)
+        } catch {
+            AppLogger.error("Failed to load FloatingSTTConfiguration: \(error)")
+            return .default
+        }
+    }
+
+    /// Save configuration to UserDefaults
+    public func save() {
+        do {
+            let data = try JSONEncoder().encode(self)
+            UserDefaults.standard.set(data, forKey: Self.storageKey)
+        } catch {
+            AppLogger.error("Failed to save FloatingSTTConfiguration: \(error)")
+        }
+    }
 }
 #endif
