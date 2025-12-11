@@ -297,15 +297,18 @@ public struct InlineVoiceModeView: View {
       isInitializing = false
       return
     }
-    
+
     isInitializing = true
     conversationManager.setSettingsManager(settingsManager)
-    
+
+    // Sync language setting to service manager
+    serviceManager.transcriptionLanguage = settingsManager.realtimeLanguageCode
+
     // Set the ClaudeCodeExecutor if provided
     if let executor = executor {
       conversationManager.setClaudeCodeExecutor(executor)
     }
-    
+
     let configuration = serviceManager.createSessionConfiguration()
     await conversationManager.startConversation(service: service, configuration: configuration)
     isInitializing = false

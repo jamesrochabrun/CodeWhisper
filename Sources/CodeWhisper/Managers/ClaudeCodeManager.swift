@@ -64,6 +64,11 @@ public final class ClaudeCodeManager {
     AppLogger.info("Initialized with executor")
   }
 
+  /// Update the executor's permission mode
+  public func setPermissionMode(_ mode: ExecutorPermissionMode) {
+    executor?.permissionMode = mode
+  }
+
   // MARK: - Execution
 
   /// Execute a Claude Code task with streaming progress

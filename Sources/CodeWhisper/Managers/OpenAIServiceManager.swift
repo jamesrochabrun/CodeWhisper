@@ -181,11 +181,18 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
     }
     
     AppLogger.info("Tools configured: \(tools.count)")
-    
+
+    // Build instructions with language directive when a specific language is selected
+    var finalInstructions = instructions
+    if let languageCode = transcriptionLanguage {
+      let languageName = languageNameFor(code: languageCode)
+      finalInstructions = "IMPORTANT: You must always speak and respond in \(languageName). All your verbal responses must be in \(languageName).\n\n" + instructions
+    }
+
     let config = OpenAIRealtimeSessionConfiguration(
       inputAudioFormat: .pcm16,
       inputAudioTranscription: .init(model: transcriptionModel, language: transcriptionLanguage),
-      instructions: instructions,
+      instructions: finalInstructions,
       maxResponseOutputTokens: .int(maxResponseOutputTokens),
       modalities: [.audio, .text],
       outputAudioFormat: .pcm16,
@@ -194,8 +201,26 @@ Be proactive, not reactive. Gather what you need, then deliver results efficient
       turnDetection: .init(type: turnDetectionEagerness == .medium ? .semanticVAD(eagerness: .medium) : (turnDetectionEagerness == .low ? .semanticVAD(eagerness: .low) : .semanticVAD(eagerness: .high))),
       voice: voice
     )
-    
+
     return config
+  }
+
+  /// Convert language code to full language name for instructions
+  private func languageNameFor(code: String) -> String {
+    switch code {
+    case "en": return "English"
+    case "es": return "Spanish"
+    case "fr": return "French"
+    case "ja": return "Japanese"
+    case "zh": return "Chinese"
+    case "hi": return "Hindi"
+    case "de": return "German"
+    case "pt": return "Portuguese"
+    case "it": return "Italian"
+    case "ko": return "Korean"
+    case "ru": return "Russian"
+    default: return code  // Use code as fallback for custom languages
+    }
   }
 }
 

@@ -8,12 +8,15 @@ import Foundation
 public protocol ClaudeCodeExecutor: AnyObject {
   /// Current execution state
   var isExecuting: Bool { get }
-  
+
   /// Array of messages from the current conversation
   var messages: [CodeExecutionMessage] { get }
-  
+
   /// Working directory for code execution
   var workingDirectory: String? { get set }
+
+  /// Permission mode for operations (can be updated at runtime)
+  var permissionMode: ExecutorPermissionMode { get set }
   
   /// Initialize the executor with configuration
   /// - Parameter configuration: Configuration settings for the executor

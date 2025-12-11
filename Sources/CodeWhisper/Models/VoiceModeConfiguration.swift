@@ -96,7 +96,7 @@ public enum TTSSpeakingState: Equatable, Sendable {
 
 // MARK: - RealtimeLanguage
 
-/// Language option for Realtime API transcription
+/// Language option for Realtime API transcription and AI spoken responses
 public enum RealtimeLanguage: Equatable, Sendable {
   case auto
   case english
@@ -104,6 +104,12 @@ public enum RealtimeLanguage: Equatable, Sendable {
   case french
   case japanese
   case chinese
+  case hindi
+  case german
+  case portuguese
+  case italian
+  case korean
+  case russian
   case custom(String)
 
   /// ISO-639-1 language code, or nil for auto-detect
@@ -115,6 +121,12 @@ public enum RealtimeLanguage: Equatable, Sendable {
     case .french: return "fr"
     case .japanese: return "ja"
     case .chinese: return "zh"
+    case .hindi: return "hi"
+    case .german: return "de"
+    case .portuguese: return "pt"
+    case .italian: return "it"
+    case .korean: return "ko"
+    case .russian: return "ru"
     case .custom(let code): return code.isEmpty ? nil : code
     }
   }
@@ -128,6 +140,12 @@ public enum RealtimeLanguage: Equatable, Sendable {
     case .french: return "French"
     case .japanese: return "Japanese"
     case .chinese: return "Chinese"
+    case .hindi: return "Hindi"
+    case .german: return "German"
+    case .portuguese: return "Portuguese"
+    case .italian: return "Italian"
+    case .korean: return "Korean"
+    case .russian: return "Russian"
     case .custom(let code): return code.isEmpty ? "Custom" : "Custom (\(code))"
     }
   }
@@ -141,6 +159,12 @@ public enum RealtimeLanguage: Equatable, Sendable {
     case .french: return "fr"
     case .japanese: return "ja"
     case .chinese: return "zh"
+    case .hindi: return "hi"
+    case .german: return "de"
+    case .portuguese: return "pt"
+    case .italian: return "it"
+    case .korean: return "ko"
+    case .russian: return "ru"
     case .custom(let code): return code
     }
   }
@@ -154,13 +178,19 @@ public enum RealtimeLanguage: Equatable, Sendable {
     case "fr": self = .french
     case "ja": self = .japanese
     case "zh": self = .chinese
+    case "hi": self = .hindi
+    case "de": self = .german
+    case "pt": self = .portuguese
+    case "it": self = .italian
+    case "ko": self = .korean
+    case "ru": self = .russian
     default: return nil  // Let caller handle custom values
     }
   }
 
   /// All preset cases (excluding custom)
   public static var presets: [RealtimeLanguage] {
-    [.auto, .english, .spanish, .french, .japanese, .chinese]
+    [.auto, .english, .spanish, .french, .german, .italian, .portuguese, .japanese, .chinese, .korean, .hindi, .russian]
   }
 }
 

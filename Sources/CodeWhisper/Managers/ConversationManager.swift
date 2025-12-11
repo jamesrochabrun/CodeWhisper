@@ -774,7 +774,13 @@ public final class ConversationManager {
       timestamp: Date(),
       messageType: .claudeCodeStart
     ))
-    
+
+    // Apply bypass permissions setting from SettingsManager
+    if let settingsManager = settingsManager {
+      let mode: ExecutorPermissionMode = settingsManager.bypassPermissions ? .bypassPermissions : .default
+      claudeCodeManager.setPermissionMode(mode)
+    }
+
     do {
       // Create TaskContext with screenshot if available
       var taskContext: TaskContext?

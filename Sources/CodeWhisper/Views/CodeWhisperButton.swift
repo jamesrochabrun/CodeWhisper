@@ -329,6 +329,8 @@ public struct CodeWhisperButton: View {
 
   private func handleOnAppear() {
     serviceManager.updateService(apiKey: settingsManager.apiKey)
+    // Sync language setting to service manager
+    serviceManager.transcriptionLanguage = settingsManager.realtimeLanguageCode
     ttsSpeaker.configuration = settingsManager.ttsConfiguration
     if let service = serviceManager.service {
       ttsSpeaker.configure(service: service)
