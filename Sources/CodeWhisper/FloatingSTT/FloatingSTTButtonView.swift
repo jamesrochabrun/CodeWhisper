@@ -369,7 +369,7 @@ struct FloatingWaveformBars: View {
 
 #Preview("Idle - Light") {
   let manager = STTManager()
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.gray.opacity(0.3))
     .preferredColorScheme(.light)
@@ -377,7 +377,7 @@ struct FloatingWaveformBars: View {
 
 #Preview("Idle - Dark") {
   let manager = STTManager()
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.black)
     .preferredColorScheme(.dark)
@@ -386,7 +386,7 @@ struct FloatingWaveformBars: View {
 #Preview("Recording - Light") {
   let manager = STTManager()
   manager.setPreviewState(.recording)
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.gray.opacity(0.3))
     .preferredColorScheme(.light)
@@ -395,7 +395,7 @@ struct FloatingWaveformBars: View {
 #Preview("Recording - Dark") {
   let manager = STTManager()
   manager.setPreviewState(.recording)
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.black)
     .preferredColorScheme(.dark)
@@ -404,7 +404,7 @@ struct FloatingWaveformBars: View {
 #Preview("Transcribing - Light") {
   let manager = STTManager()
   manager.setPreviewState(.transcribing)
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.gray.opacity(0.3))
     .preferredColorScheme(.light)
@@ -413,7 +413,7 @@ struct FloatingWaveformBars: View {
 #Preview("Transcribing - Dark") {
   let manager = STTManager()
   manager.setPreviewState(.transcribing)
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.black)
     .preferredColorScheme(.dark)
@@ -422,7 +422,7 @@ struct FloatingWaveformBars: View {
 #Preview("Error - Light") {
   let manager = STTManager()
   manager.setPreviewState(.error("Test error"))
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.gray.opacity(0.3))
     .preferredColorScheme(.light)
@@ -431,7 +431,7 @@ struct FloatingWaveformBars: View {
 #Preview("Error - Dark") {
   let manager = STTManager()
   manager.setPreviewState(.error("Test error"))
-  return FloatingSTTButtonView(sttManager: manager, onTap: {})
+  FloatingSTTButtonView(sttManager: manager, onTap: {})
     .padding(40)
     .background(Color.black)
     .preferredColorScheme(.dark)
