@@ -438,3 +438,4 @@ struct FloatingWaveformBars: View {
     .preferredColorScheme(.dark)
 }
 #endif
+#endif
