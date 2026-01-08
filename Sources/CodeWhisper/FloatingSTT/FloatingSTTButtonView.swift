@@ -383,6 +383,7 @@ struct FloatingWaveformBars: View {
     .preferredColorScheme(.dark)
 }
 
+#if DEBUG
 #Preview("Recording - Light") {
   let manager = STTManager()
   manager.setPreviewState(.recording)
