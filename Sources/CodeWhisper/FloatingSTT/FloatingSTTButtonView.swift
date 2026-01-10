@@ -384,58 +384,42 @@ struct FloatingWaveformBars: View {
 }
 
 #if DEBUG
+private struct PreviewHost: View {
+  let state: STTRecordingState
+  let colorScheme: ColorScheme
+
+  var body: some View {
+    let manager = STTManager()
+    manager.setPreviewState(state)
+    return FloatingSTTButtonView(sttManager: manager, onTap: {})
+      .padding(40)
+      .background(colorScheme == .dark ? Color.black : Color.gray.opacity(0.3))
+      .preferredColorScheme(colorScheme)
+  }
+}
+
 #Preview("Recording - Light") {
-  let manager = STTManager()
-  manager.setPreviewState(.recording)
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.gray.opacity(0.3))
-    .preferredColorScheme(.light)
+  PreviewHost(state: .recording, colorScheme: .light)
 }
 
 #Preview("Recording - Dark") {
-  let manager = STTManager()
-  manager.setPreviewState(.recording)
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.black)
-    .preferredColorScheme(.dark)
+  PreviewHost(state: .recording, colorScheme: .dark)
 }
 
 #Preview("Transcribing - Light") {
-  let manager = STTManager()
-  manager.setPreviewState(.transcribing)
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.gray.opacity(0.3))
-    .preferredColorScheme(.light)
+  PreviewHost(state: .transcribing, colorScheme: .light)
 }
 
 #Preview("Transcribing - Dark") {
-  let manager = STTManager()
-  manager.setPreviewState(.transcribing)
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.black)
-    .preferredColorScheme(.dark)
+  PreviewHost(state: .transcribing, colorScheme: .dark)
 }
 
 #Preview("Error - Light") {
-  let manager = STTManager()
-  manager.setPreviewState(.error("Test error"))
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.gray.opacity(0.3))
-    .preferredColorScheme(.light)
+  PreviewHost(state: .error("Test error"), colorScheme: .light)
 }
 
 #Preview("Error - Dark") {
-  let manager = STTManager()
-  manager.setPreviewState(.error("Test error"))
-  FloatingSTTButtonView(sttManager: manager, onTap: {})
-    .padding(40)
-    .background(Color.black)
-    .preferredColorScheme(.dark)
+  PreviewHost(state: .error("Test error"), colorScheme: .dark)
 }
 #endif
 #endif
