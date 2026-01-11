@@ -13,6 +13,31 @@ enum VoiceModeStyle: String, CaseIterable {
   case inline = "Inline"
 }
 
+enum DemoOption: String, CaseIterable, Identifiable {
+  case voiceModes = "Voice Modes Demo"
+  case floatingButton = "Floating Button"
+
+  var id: String { rawValue }
+
+  var description: String {
+    switch self {
+    case .voiceModes:
+      return "Full and Inline voice mode demonstrations"
+    case .floatingButton:
+      return "Launch a floating STT button on screen"
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .voiceModes:
+      return "waveform"
+    case .floatingButton:
+      return "bubble.left.and.bubble.right"
+    }
+  }
+}
+
 @main
 struct CodeWhisperApp: App {
   @State private var settingsManager = SettingsManager()
@@ -51,12 +76,99 @@ struct CodeWhisperApp: App {
 // MARK: - Content View
 
 struct ContentView: View {
+  @Environment(SettingsManager.self) private var settingsManager
+
+  var body: some View {
+    NavigationStack {
+      DemoListView()
+    }
+  }
+}
+
+// MARK: - Demo List View
+
+struct DemoListView: View {
+  @Environment(SettingsManager.self) private var settingsManager
+
+  var body: some View {
+    ZStack {
+      Color.black.ignoresSafeArea()
+
+      List {
+        ForEach(DemoOption.allCases) { option in
+          switch option {
+          case .voiceModes:
+            NavigationLink(value: option) {
+              DemoOptionRow(option: option)
+            }
+          case .floatingButton:
+            Button {
+              launchFloatingButton()
+            } label: {
+              DemoOptionRow(option: option)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+        .listRowBackground(Color.white.opacity(0.05))
+      }
+      .scrollContentBackground(.hidden)
+      .navigationDestination(for: DemoOption.self) { option in
+        switch option {
+        case .voiceModes:
+          VoiceModesView()
+        case .floatingButton:
+          EmptyView()
+        }
+      }
+    }
+    .navigationTitle("CodeWhisper Demo")
+  }
+
+  private func launchFloatingButton() {
+    #if os(macOS)
+    FloatingSTT.configure(apiKey: settingsManager.apiKey)
+    FloatingSTT.show()
+    #endif
+  }
+}
+
+// MARK: - Demo Option Row
+
+struct DemoOptionRow: View {
+  let option: DemoOption
+
+  var body: some View {
+    HStack(spacing: 16) {
+      Image(systemName: option.systemImage)
+        .font(.title2)
+        .foregroundStyle(.blue)
+        .frame(width: 32)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text(option.rawValue)
+          .font(.headline)
+          .foregroundStyle(.white)
+        Text(option.description)
+          .font(.caption)
+          .foregroundStyle(.gray)
+      }
+
+      Spacer()
+    }
+    .padding(.vertical, 8)
+  }
+}
+
+// MARK: - Voice Modes View
+
+struct VoiceModesView: View {
   @State private var selectedStyle: VoiceModeStyle = .full
-  
+
   var body: some View {
     ZStack(alignment: .top) {
       Color.black.ignoresSafeArea()
-      
+
       VStack(spacing: 0) {
         // Style picker
         Picker("Style", selection: $selectedStyle) {
@@ -66,7 +178,7 @@ struct ContentView: View {
         }
         .pickerStyle(.segmented)
         .padding()
-        
+
         // Content based on selected style
         switch selectedStyle {
         case .full:
@@ -83,9 +195,9 @@ struct ContentView: View {
               }
               .padding()
             }
-            
+
             Spacer()
-            
+
             // Inline voice mode at bottom
             InlineVoiceModeView()
               .padding(.horizontal)
@@ -94,8 +206,9 @@ struct ContentView: View {
         }
       }
     }
+    .navigationTitle("Voice Modes")
   }
-  
+
   @ViewBuilder
   private func mockMessage(_ text: String, isUser: Bool) -> some View {
     HStack {

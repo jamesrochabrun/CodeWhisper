@@ -116,7 +116,7 @@ public final class STTManager {
       errorMessage = "Microphone permission is required for speech-to-text"
       return
     }
-    
+
     // Prepare state
     self.audioBuffers.removeAll()
     self.errorMessage = nil
@@ -178,30 +178,30 @@ public final class STTManager {
   }
   
   private func stopRecordingAndTranscribe() async {
-    
+
     // Stop recording
     recordingTask?.cancel()
     recordingTask = nil
-    
+
     // Capture the recorder reference before entering RealtimeActor context
     let recorderToStop = recorder
     recorder = nil
-    
+
     Task { @RealtimeActor in
       recorderToStop?.stopRecording()
     }
-    
+
     // Check if we have audio data
     guard !audioBuffers.isEmpty else {
       state = .idle
       audioLevel = 0.0
       return
     }
-    
+
     // Update state
     state = .transcribing
     audioLevel = 0.0
-    
+
     do {
       // Convert buffers to audio file data
       guard let audioData = createWavFileData() else {
@@ -211,14 +211,14 @@ public final class STTManager {
       }
       // Clear buffers
       audioBuffers.removeAll()
-      
+
       // Check service is configured
       guard let service = service else {
         throw NSError(domain: "STTManager", code: 2, userInfo: [
           NSLocalizedDescriptionKey: "OpenAI service not configured. Call configure(service:) first."
         ])
       }
-      
+
       // Create transcription request
       // Use "json" format so response can be properly parsed
       let parameters = AudioTranscriptionParameters(
@@ -227,22 +227,22 @@ public final class STTManager {
         model: .custom(model: "gpt-4o-mini-transcribe"),
         responseFormat: "json"
       )
-      
+
       // Call Whisper API
       let result = try await service.createTranscription(parameters: parameters)
-      
+
       // Success - update state and call callback
       state = .idle
       errorMessage = nil
-      
+
       let transcribedText = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      
+
       if !transcribedText.isEmpty {
         onTranscription?(transcribedText)
       } else {
         print("[STTManager] WARNING: Transcribed text is empty, not calling callback")
       }
-      
+
     } catch {
       state = .error(error.localizedDescription)
       errorMessage = "Transcription failed: \(error.localizedDescription)"
