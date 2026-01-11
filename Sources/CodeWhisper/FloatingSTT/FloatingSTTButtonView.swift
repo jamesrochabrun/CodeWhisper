@@ -141,17 +141,17 @@ public struct FloatingSTTButtonView: View {
             endPoint: .bottom
           )
         )
-      // Specular highlight band (sharp metallic reflection)
+      // Specular highlight band (sharp glass-like reflection)
         .overlay(
           Capsule()
             .fill(
               LinearGradient(
                 stops: [
                   .init(color: .clear, location: 0),
-                  .init(color: .clear, location: 0.1),
-                  .init(color: .white.opacity((isPressed || isPushed) ? 0.2 : 0.6), location: 0.15),
-                  .init(color: .white.opacity((isPressed || isPushed) ? 0.1 : 0.35), location: 0.25),
-                  .init(color: .clear, location: 0.4),
+                  .init(color: .clear, location: 0.08),
+                  .init(color: .white.opacity((isPressed || isPushed) ? 0.25 : 0.75), location: 0.15),
+                  .init(color: .white.opacity((isPressed || isPushed) ? 0.12 : 0.45), location: 0.28),
+                  .init(color: .clear, location: 0.45),
                   .init(color: .clear, location: 1.0)
                 ],
                 startPoint: .top,
@@ -166,8 +166,8 @@ public struct FloatingSTTButtonView: View {
             .strokeBorder(
               LinearGradient(
                 colors: [
-                  .white.opacity((isPressed || isPushed) ? 0.15 : (colorScheme == .dark ? 0.4 : 0.7)),
-                  .white.opacity((isPressed || isPushed) ? 0.05 : 0.1),
+                  .white.opacity((isPressed || isPushed) ? 0.18 : (colorScheme == .dark ? 0.55 : 0.85)),
+                  .white.opacity((isPressed || isPushed) ? 0.06 : 0.15),
                   .clear,
                   .clear
                 ],
@@ -218,8 +218,8 @@ public struct FloatingSTTButtonView: View {
       // Error - Subtle red edge
       return [Color(red: 0.45, green: 0.20, blue: 0.20), Color(red: 0.35, green: 0.15, blue: 0.15)]
     } else {
-      // Darker metallic edge for sharp definition
-      return [Color(red: 0.45, green: 0.47, blue: 0.50), Color(red: 0.35, green: 0.37, blue: 0.40)]
+      // Dark metallic edge for glossy black button
+      return [Color(red: 0.03, green: 0.03, blue: 0.05), Color(red: 0.01, green: 0.01, blue: 0.02)]
     }
   }
 
@@ -230,18 +230,18 @@ public struct FloatingSTTButtonView: View {
       ? [Color(red: 0.55, green: 0.25, blue: 0.25), Color(red: 0.40, green: 0.18, blue: 0.18)]
       : [Color(red: 0.75, green: 0.35, blue: 0.35), Color(red: 0.60, green: 0.28, blue: 0.28)]
     } else if isPushed {
-      // Pushed: inverted metallic gradient (concave)
+      // Pushed: inverted glossy black gradient (concave)
       return [
-        Color(red: 0.65, green: 0.67, blue: 0.70),  // darker top
-        Color(red: 0.75, green: 0.77, blue: 0.80),  // mid
-        Color(red: 0.88, green: 0.89, blue: 0.92)   // lighter bottom
+        Color(red: 0.04, green: 0.04, blue: 0.06),  // darker top (shadow)
+        Color(red: 0.08, green: 0.08, blue: 0.10),  // mid
+        Color(red: 0.15, green: 0.15, blue: 0.18)   // lighter bottom
       ]
     } else {
-      // Idle: classic aluminum gradient (convex)
+      // Idle: glossy black gradient (convex)
       return [
-        Color(red: 0.95, green: 0.96, blue: 0.98),  // bright top (almost white)
-        Color(red: 0.82, green: 0.84, blue: 0.87),  // mid gray
-        Color(red: 0.70, green: 0.72, blue: 0.75)   // darker bottom
+        Color(red: 0.28, green: 0.28, blue: 0.32),  // lighter charcoal top (catches light)
+        Color(red: 0.12, green: 0.12, blue: 0.14),  // mid black
+        Color(red: 0.06, green: 0.06, blue: 0.08)   // deep black bottom
       ]
     }
   }
@@ -287,11 +287,11 @@ public struct FloatingSTTButtonView: View {
   
   private var barColor: Color {
     if case .error = sttManager.state {
-      // White bars on amber background
+      // White bars on red background
       return .white.opacity(0.6)
     } else {
-      // Dark bars on silver for idle/recording/transcribing
-      return .black.opacity(0.5)
+      // White bars on glossy black for contrast
+      return .white.opacity(0.75)
     }
   }
   
