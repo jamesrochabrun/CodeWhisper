@@ -6,9 +6,10 @@
 //
 
 #if os(macOS)
+import AppKit
 import SwiftUI
 
-/// Container view for embedded mode - shows settings button on hover
+/// Container view for embedded mode - right-click to show settings popover
 struct FloatingSTTEmbeddedContainerView: View {
 
   // MARK: - Properties
@@ -20,12 +21,7 @@ struct FloatingSTTEmbeddedContainerView: View {
   let onTap: () -> Void
   let onLongPress: (() -> Void)?
 
-  @State private var isHovering: Bool = false
   @State private var showSettingsPopover: Bool = false
-
-  // Layout constants
-  private let settingsButtonWidth: CGFloat = 28
-  private let spacing: CGFloat = 6
 
   /// Whether the STT manager is in idle state
   private var isIdle: Bool {
@@ -35,8 +31,13 @@ struct FloatingSTTEmbeddedContainerView: View {
   // MARK: - Body
 
   var body: some View {
-    HStack(spacing: spacing) {
-      // Main STT button
+    RightClickableView(
+      onRightClick: {
+        if isIdle {
+          showSettingsPopover = true
+        }
+      }
+    ) {
       FloatingSTTButtonView(
         sttManager: sttManager,
         buttonSize: buttonSize,
@@ -44,58 +45,44 @@ struct FloatingSTTEmbeddedContainerView: View {
         onTap: onTap,
         onLongPress: onLongPress
       )
-
-      // Settings button - appears on hover only when idle
-      if isIdle && (isHovering || showSettingsPopover) {
-        FloatingSTTSettingsButtonView {
-          showSettingsPopover.toggle()
-        }
-        .transition(.move(edge: .leading).combined(with: .opacity))
-        .popover(isPresented: $showSettingsPopover, arrowEdge: .bottom) {
-          FloatingSTTSettingsView(manager: floatingManager, isPopover: true)
-        }
-      }
     }
-    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isHovering)
-    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isIdle)
-    .contentShape(Rectangle())
-    .onHover { hovering in
-      handleHover(hovering)
-    }
-    .onChange(of: showSettingsPopover) { _, isShowing in
-      // When popover closes and not hovering, hide settings button after delay
-      if !isShowing && !isHovering {
-        scheduleHideSettingsButton()
-      }
+    .popover(isPresented: $showSettingsPopover, arrowEdge: .bottom) {
+      FloatingSTTSettingsView(manager: floatingManager, isPopover: true)
     }
   }
+}
 
-  // MARK: - Private Methods
+// MARK: - Right Click Support
 
-  private func handleHover(_ hovering: Bool) {
-    if hovering {
-      isHovering = true
-    } else {
-      // Only hide if popover is not showing
-      if !showSettingsPopover {
-        scheduleHideSettingsButton()
-      }
-    }
+/// A wrapper view that detects right-click (two-finger click) events
+private struct RightClickableView<Content: View>: NSViewRepresentable {
+  let onRightClick: () -> Void
+  @ViewBuilder let content: () -> Content
+
+  func makeNSView(context: Context) -> RightClickHostingView<Content> {
+    let view = RightClickHostingView(rootView: content())
+    view.onRightClick = onRightClick
+    return view
   }
 
-  private func scheduleHideSettingsButton() {
-    // Small delay for smoother UX when moving between buttons
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-      if !showSettingsPopover {
-        isHovering = false
-      }
-    }
+  func updateNSView(_ nsView: RightClickHostingView<Content>, context: Context) {
+    nsView.rootView = content()
+    nsView.onRightClick = onRightClick
+  }
+}
+
+/// Custom NSHostingView that intercepts right mouse clicks
+private class RightClickHostingView<Content: View>: NSHostingView<Content> {
+  var onRightClick: (() -> Void)?
+
+  override func rightMouseDown(with event: NSEvent) {
+    onRightClick?()
   }
 }
 
 // MARK: - Previews
 
-#Preview("Embedded Container - Idle") {
+#Preview("Embedded Container") {
   let sttManager = STTManager()
   let floatingManager = FloatingSTTManager()
   FloatingSTTEmbeddedContainerView(

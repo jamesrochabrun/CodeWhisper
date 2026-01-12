@@ -244,14 +244,8 @@ public final class FloatingSTTManager {
 
         let isEmbedded = configuration.displayMode == .embedded
 
-        // For embedded mode, use wider panel to accommodate settings button on hover
-        // Main button (88) + spacing (6) + settings button (28) + extra padding (10) = 132
-        let panelSize: CGSize
-        if isEmbedded {
-            panelSize = CGSize(width: buttonSize.width + 6 + 28 + 10, height: buttonSize.height)
-        } else {
-            panelSize = buttonSize
-        }
+        // Embedded mode uses same size as menu bar mode (right-click for settings)
+        let panelSize = buttonSize
 
         let controller = FloatingSTTWindowController(buttonSize: panelSize)
 

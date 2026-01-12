@@ -323,7 +323,7 @@ public struct FloatingSTTButtonView: View {
 
 // MARK: - Floating Waveform Bars
 
-/// Compact waveform visualization for the floating button
+/// Compact waveform visualization for the floating buttonSiento.
 struct FloatingWaveformBars: View {
 
   let levels: [Float]
