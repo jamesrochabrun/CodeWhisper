@@ -19,6 +19,7 @@ public final class PromptEnhancer {
   // MARK: - Properties
 
   private var service: OpenAIService?
+  private var chatService: ChatService?
 
   /// Default system prompt for enhancement
   public nonisolated static let defaultSystemPrompt = """
@@ -36,9 +37,16 @@ public final class PromptEnhancer {
 
   // MARK: - Configuration
 
-  /// Configure the enhancer with an OpenAI service
+  /// Configure the enhancer with a SwiftOpenAI service
   public func configure(service: OpenAIService) {
     self.service = service
+    self.chatService = nil
+  }
+
+  /// Configure the enhancer with a ChatService (supports SwiftAIKit)
+  public func configure(chatService: ChatService) {
+    self.chatService = chatService
+    self.service = nil
   }
 
   // MARK: - Enhancement
@@ -50,17 +58,59 @@ public final class PromptEnhancer {
   /// - Returns: The enhanced text
   public func enhance(
     text: String,
+    model: String,
     systemPrompt: String
   ) async throws -> String {
-    guard let service = service else {
-      throw PromptEnhancerError.notConfigured
-    }
-
     // Skip enhancement for very short text
     guard text.count > 2 else {
       return text
     }
 
+    // Use ChatService if available, otherwise fall back to SwiftOpenAI service
+    if let chatService = chatService {
+      return try await enhanceWithChatService(
+        text: text,
+        systemPrompt: systemPrompt,
+        model: model,
+        chatService: chatService
+      )
+    } else if let service = service {
+      return try await enhanceWithSwiftOpenAI(
+        text: text,
+        systemPrompt: systemPrompt,
+        service: service
+      )
+    } else {
+      throw PromptEnhancerError.notConfigured
+    }
+  }
+
+  private func enhanceWithChatService(
+    text: String,
+    systemPrompt: String,
+    model: String,
+    chatService: ChatService
+  ) async throws -> String {
+    let messages = [
+      ChatMessage(role: .system, content: systemPrompt),
+      ChatMessage(role: .user, content: text)
+    ]
+
+    let enhancedText = try await chatService.chat(
+      messages: messages,
+      model: model,
+      maxTokens: 1024,
+      temperature: 0.3
+    )
+
+    return enhancedText.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func enhanceWithSwiftOpenAI(
+    text: String,
+    systemPrompt: String,
+    service: OpenAIService
+  ) async throws -> String {
     let parameters = ChatCompletionParameters(
       messages: [
         .init(role: .system, content: .text(systemPrompt)),
@@ -77,7 +127,7 @@ public final class PromptEnhancer {
       throw PromptEnhancerError.noContent
     }
 
-    return enhancedText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+    return enhancedText.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
 
@@ -97,3 +147,4 @@ public enum PromptEnhancerError: LocalizedError {
   }
 }
 #endif
+

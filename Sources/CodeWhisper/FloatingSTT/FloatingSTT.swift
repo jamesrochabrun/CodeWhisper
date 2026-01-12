@@ -8,25 +8,115 @@
 #if os(macOS)
 import SwiftOpenAI
 
-/// Public API for the floating STT (Speech-to-Text) button feature.
+/// Protocol defining the floating STT interface.
+/// Conformers provide a manager instance and implement the core configuration method.
+/// All functional methods (show, hide, permissions, etc.) have default implementations.
+@MainActor
+public protocol FloatingSTTInterface {
+  /// The FloatingSTTManager instance
+  static var manager: FloatingSTTManager { get }
+
+  /// Core configuration method - conformers must implement this
+  /// - Parameters:
+  ///   - transcriptionService: The transcription service to use
+  ///   - configuration: Optional configuration override
+  static func configure(
+    transcriptionService: TranscriptionService,
+    configuration: FloatingSTTConfiguration?
+  )
+}
+
+// MARK: - Protocol Extension (Default Implementations)
+
+extension FloatingSTTInterface {
+
+  // MARK: - Configuration Convenience
+
+  /// Configure with just a transcription service (uses current/default configuration)
+  public static func configure(transcriptionService: TranscriptionService) {
+    configure(transcriptionService: transcriptionService, configuration: nil)
+  }
+
+  // MARK: - Visibility
+
+  /// Show the floating STT button
+  public static func show() {
+    manager.show()
+  }
+
+  /// Hide the floating STT button
+  public static func hide() {
+    manager.hide()
+  }
+
+  /// Toggle the floating STT button visibility
+  public static func toggle() {
+    manager.toggle()
+  }
+
+  /// Shutdown the floating STT mode completely (removes menu bar and button)
+  public static func shutdown() {
+    manager.shutdown()
+  }
+
+  /// Whether the floating button is currently visible
+  public static var isVisible: Bool {
+    manager.isVisible
+  }
+
+  // MARK: - Settings
+
+  /// Show the settings window
+  public static func showSettings() {
+    manager.showSettings()
+  }
+
+  // MARK: - Permissions
+
+  /// Whether Accessibility permission is granted
+  public static var hasAccessibilityPermission: Bool {
+    manager.hasAccessibilityPermission
+  }
+
+  /// Request Accessibility permission from the user
+  /// - Returns: True if permission was granted
+  @discardableResult
+  public static func requestAccessibilityPermission() -> Bool {
+    manager.requestAccessibilityPermission()
+  }
+
+  /// Open System Settings to the Accessibility privacy pane
+  public static func openAccessibilitySettings() {
+    manager.openAccessibilitySettings()
+  }
+
+  /// Refresh the permission state (call after returning from System Settings)
+  public static func refreshPermissionState() {
+    manager.refreshPermissionState()
+  }
+
+  // MARK: - State
+
+  /// Whether a text field is currently focused and can receive inserted text
+  public static var canInsertText: Bool {
+    manager.canInsertText
+  }
+
+  /// The current configuration
+  public static var configuration: FloatingSTTConfiguration {
+    get { manager.configuration }
+    set { manager.configuration = newValue }
+  }
+}
+
+// MARK: - Default Implementation
+
+/// Default implementation of FloatingSTTInterface.
 ///
-/// The floating STT button provides system-wide voice-to-text input:
-/// - A small floating button that stays on top of all windows
+/// Provides system-wide voice-to-text input via a floating button:
 /// - Tap to record speech, tap again to transcribe
 /// - Automatically inserts transcribed text into the focused text field
 /// - Works in any application
-///
-/// ## Display Modes
-///
-/// The floating button supports two display modes:
-///
-/// ### Menu Bar Mode (default)
-/// Shows a menu bar item for controlling the button and accessing settings.
-/// Best for standalone usage.
-///
-/// ### Embedded Mode
-/// No menu bar item - designed for use as a feature within a host Mac app.
-/// Settings are accessed via a hover button that appears next to the main button.
 ///
 /// ## Usage
 ///
@@ -38,193 +128,121 @@ import SwiftOpenAI
 ///
 /// ### Embedded mode (no menu bar):
 /// ```swift
-/// FloatingSTT.configure(apiKey: "sk-...", embedded: true)
+/// FloatingSTT.configureEmbedded(apiKey: "sk-...")
 /// FloatingSTT.show()
 /// ```
 ///
-/// ### Advanced (custom service):
+/// ### Custom transcription service:
 /// ```swift
-/// FloatingSTT.configure(service: customOpenAIService)
+/// FloatingSTT.configure(transcriptionService: myCustomService)
 /// FloatingSTT.show()
 /// ```
 ///
 /// ### Handle events:
 /// ```swift
-/// FloatingSTT.shared.onTextInserted = { text, result in
+/// FloatingSTT.manager.onTextInserted = { text, result in
 ///     print("Inserted: \(text)")
 /// }
 /// ```
-///
-/// ## Permissions
-///
-/// The floating STT feature requires:
-/// - **Microphone access**: For recording speech
-/// - **Accessibility permission**: For detecting focused text fields and inserting text
-///
-/// If Accessibility permission is not granted, the feature falls back to clipboard-based
-/// text insertion (copies text to clipboard and simulates Cmd+V).
-///
-public enum FloatingSTT {
+public enum FloatingSTT: FloatingSTTInterface {
 
-    // MARK: - Shared Instance
+  /// The shared FloatingSTTManager instance
+  public static let manager = FloatingSTTManager()
 
-    /// The shared FloatingSTTManager instance
-    @MainActor
-    public static let shared = FloatingSTTManager()
+  // MARK: - Core Configuration (Protocol Requirement)
 
-    // MARK: - Configuration
-
-    /// Configure with an API key
-    ///
-    /// Creates an OpenAI service internally using the provided API key.
-    /// - Parameter apiKey: The OpenAI API key to use for Whisper transcription
-    @MainActor
-    public static func configure(apiKey: String) {
-        shared.configure(apiKey: apiKey)
+  /// Configure with a transcription service and optional configuration
+  /// - Parameters:
+  ///   - transcriptionService: The transcription service to use
+  ///   - configuration: Optional configuration override
+  public static func configure(
+    transcriptionService: TranscriptionService,
+    configuration: FloatingSTTConfiguration?
+  ) {
+    if let config = configuration {
+      manager.configuration = config
     }
+    manager.configure(transcriptionService: transcriptionService)
+  }
 
-    /// Configure with a custom OpenAI service
-    /// - Parameter service: The OpenAI service to use for Whisper transcription
-    @MainActor
-    public static func configure(service: OpenAIService) {
-        shared.configure(service: service)
+  // MARK: - OpenAI Convenience Methods
+
+  /// Configure with an OpenAI API key
+  /// - Parameter apiKey: The OpenAI API key for Whisper transcription
+  public static func configure(apiKey: String) {
+    let service = OpenAIServiceFactory.service(apiKey: apiKey)
+    let adapter = OpenAITranscriptionAdapter(service: service)
+    configure(transcriptionService: adapter, configuration: nil)
+  }
+
+  /// Configure with a custom OpenAI service
+  /// - Parameter service: The OpenAI service for Whisper transcription
+  public static func configure(service: OpenAIService) {
+    let adapter = OpenAITranscriptionAdapter(service: service)
+    configure(transcriptionService: adapter, configuration: nil)
+  }
+
+  /// Configure with an API key and display mode
+  /// - Parameters:
+  ///   - apiKey: The OpenAI API key for Whisper transcription
+  ///   - embedded: If true, uses embedded mode (no menu bar)
+  public static func configure(apiKey: String, embedded: Bool) {
+    if embedded {
+      configureEmbedded(apiKey: apiKey)
+    } else {
+      configure(apiKey: apiKey)
     }
+  }
 
-    /// Configure for embedded mode with an API key
-    ///
-    /// Embedded mode is designed for use within a host Mac app:
-    /// - No menu bar item is created
-    /// - Settings are accessed via a hover button next to the main button
-    ///
-    /// - Parameters:
-    ///   - apiKey: The OpenAI API key to use for Whisper transcription
-    ///   - embedded: If true, uses embedded mode (no menu bar, hover settings)
-    @MainActor
-    public static func configure(apiKey: String, embedded: Bool) {
-        var config = FloatingSTTConfiguration.load()
-        config.displayMode = embedded ? .embedded : .menuBar
-        shared.configuration = config
-        shared.configure(apiKey: apiKey)
+  /// Configure with a custom OpenAI service and display mode
+  /// - Parameters:
+  ///   - service: The OpenAI service for Whisper transcription
+  ///   - embedded: If true, uses embedded mode (no menu bar)
+  public static func configure(service: OpenAIService, embedded: Bool) {
+    if embedded {
+      configureEmbedded(service: service)
+    } else {
+      configure(service: service)
     }
+  }
 
-    /// Configure for embedded mode with a custom OpenAI service
-    ///
-    /// Embedded mode is designed for use within a host Mac app:
-    /// - No menu bar item is created
-    /// - Settings are accessed via a hover button next to the main button
-    ///
-    /// - Parameters:
-    ///   - service: The OpenAI service to use for Whisper transcription
-    ///   - embedded: If true, uses embedded mode (no menu bar, hover settings)
-    @MainActor
-    public static func configure(service: OpenAIService, embedded: Bool) {
-        var config = FloatingSTTConfiguration.load()
-        config.displayMode = embedded ? .embedded : .menuBar
-        shared.configuration = config
-        shared.configure(service: service)
-    }
+  // MARK: - Embedded Mode
 
-    /// Configure with a custom configuration and API key
-    /// - Parameters:
-    ///   - apiKey: The OpenAI API key to use
-    ///   - configuration: Custom configuration for the floating button
-    @MainActor
-    public static func configure(apiKey: String, configuration: FloatingSTTConfiguration) {
-        shared.configuration = configuration
-        shared.configure(apiKey: apiKey)
-    }
+  /// Configure for embedded mode with an API key
+  ///
+  /// Embedded mode is designed for use within a host Mac app:
+  /// - No menu bar item is created
+  /// - Settings are accessed via hover button next to main button
+  ///
+  /// - Parameter apiKey: The OpenAI API key for Whisper transcription
+  public static func configureEmbedded(apiKey: String) {
+    var config = FloatingSTTConfiguration.load()
+    config.displayMode = .embedded
+    let service = OpenAIServiceFactory.service(apiKey: apiKey)
+    let adapter = OpenAITranscriptionAdapter(service: service)
+    configure(transcriptionService: adapter, configuration: config)
+  }
 
-    /// Configure with a custom configuration and OpenAI service
-    /// - Parameters:
-    ///   - service: The OpenAI service to use for Whisper transcription
-    ///   - configuration: Custom configuration for the floating button
-    @MainActor
-    public static func configure(service: OpenAIService, configuration: FloatingSTTConfiguration) {
-        shared.configuration = configuration
-        shared.configure(service: service)
-    }
+  /// Configure for embedded mode with a custom OpenAI service
+  ///
+  /// Embedded mode is designed for use within a host Mac app:
+  /// - No menu bar item is created
+  /// - Settings are accessed via hover button next to main button
+  ///
+  /// - Parameter service: The OpenAI service for Whisper transcription
+  public static func configureEmbedded(service: OpenAIService) {
+    var config = FloatingSTTConfiguration.load()
+    config.displayMode = .embedded
+    let adapter = OpenAITranscriptionAdapter(service: service)
+    configure(transcriptionService: adapter, configuration: config)
+  }
 
-    // MARK: - Visibility
-
-    /// Show the floating STT button
-    @MainActor
-    public static func show() {
-        shared.show()
-    }
-
-    /// Hide the floating STT button
-    @MainActor
-    public static func hide() {
-        shared.hide()
-    }
-
-    /// Toggle the floating STT button visibility
-    @MainActor
-    public static func toggle() {
-        shared.toggle()
-    }
-
-    /// Shutdown the floating STT mode completely (removes menu bar and button)
-    @MainActor
-    public static func shutdown() {
-        shared.shutdown()
-    }
-
-    /// Whether the floating button is currently visible
-    @MainActor
-    public static var isVisible: Bool {
-        shared.isVisible
-    }
-
-    // MARK: - Settings
-
-    /// Show the settings window
-    @MainActor
-    public static func showSettings() {
-        shared.showSettings()
-    }
-
-    // MARK: - Permissions
-
-    /// Whether Accessibility permission is granted
-    @MainActor
-    public static var hasAccessibilityPermission: Bool {
-        shared.hasAccessibilityPermission
-    }
-
-    /// Request Accessibility permission from the user
-    /// - Returns: True if permission was granted
-    @MainActor
-    @discardableResult
-    public static func requestAccessibilityPermission() -> Bool {
-        shared.requestAccessibilityPermission()
-    }
-
-    /// Open System Settings to the Accessibility privacy pane
-    @MainActor
-    public static func openAccessibilitySettings() {
-        shared.openAccessibilitySettings()
-    }
-
-    /// Refresh the permission state (call after returning from System Settings)
-    @MainActor
-    public static func refreshPermissionState() {
-        shared.refreshPermissionState()
-    }
-
-    // MARK: - State
-
-    /// Whether a text field is currently focused and can receive inserted text
-    @MainActor
-    public static var canInsertText: Bool {
-        shared.canInsertText
-    }
-
-    /// The current configuration
-    @MainActor
-    public static var configuration: FloatingSTTConfiguration {
-        get { shared.configuration }
-        set { shared.configuration = newValue }
-    }
+  /// Configure for embedded mode with a custom transcription service
+  /// - Parameter transcriptionService: The transcription service to use
+  public static func configureEmbedded(transcriptionService: TranscriptionService) {
+    var config = FloatingSTTConfiguration.load()
+    config.displayMode = .embedded
+    configure(transcriptionService: transcriptionService, configuration: config)
+  }
 }
 #endif

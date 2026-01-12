@@ -10,6 +10,7 @@ import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
 
+
 /// Method used to insert text
 public enum TextInsertionMethod: String, Codable, Sendable {
     case accessibilityAPI
