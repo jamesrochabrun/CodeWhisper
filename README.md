@@ -36,7 +36,7 @@ import CodeWhisper
 FloatingSTT.configure(apiKey: "sk-...")
 FloatingSTT.show()
 
-// Embedded mode - no menu bar, hover for settings
+// Embedded mode - no menu bar, right-click for settings
 FloatingSTT.configure(apiKey: "sk-...", embedded: true)
 FloatingSTT.show()
 
@@ -52,7 +52,7 @@ FloatingSTT.hide()
 | Mode | Menu Bar | Settings Access | Use Case |
 |------|----------|-----------------|----------|
 | **Menu Bar** (default) | Yes | Via menu bar item | Standalone usage |
-| **Embedded** | No | Hover to reveal gear | Host app integration |
+| **Embedded** | No | Right-click (two-finger tap) | Host app integration |
 
 ### Configuration
 
