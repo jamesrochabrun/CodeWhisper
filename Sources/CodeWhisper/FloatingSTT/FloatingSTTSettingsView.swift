@@ -16,8 +16,12 @@ public struct FloatingSTTSettingsView: View {
     @Bindable var manager: FloatingSTTManager
     @State private var hasAccessibilityPermission: Bool = false
 
-    public init(manager: FloatingSTTManager) {
+    /// Whether shown in a popover (affects sizing/padding)
+    let isPopover: Bool
+
+    public init(manager: FloatingSTTManager, isPopover: Bool = false) {
         self.manager = manager
+        self.isPopover = isPopover
     }
 
     public var body: some View {
@@ -26,9 +30,14 @@ public struct FloatingSTTSettingsView: View {
                 FloatingButtonSection(hasAccessibilityPermission: $hasAccessibilityPermission)
                 PromptEnhancementSection(manager: manager)
             }
-            .padding(24)
+            .padding(isPopover ? 16 : 24)
         }
-        .frame(minWidth: 400, idealWidth: 450, minHeight: 350, idealHeight: 400)
+        .frame(
+            minWidth: isPopover ? 350 : 400,
+            idealWidth: isPopover ? 380 : 450,
+            minHeight: isPopover ? 300 : 350,
+            idealHeight: isPopover ? 350 : 400
+        )
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             hasAccessibilityPermission = FloatingSTT.hasAccessibilityPermission

@@ -5,8 +5,10 @@ A voice-enabled AI assistant framework for macOS, iOS, and visionOS. Supports mu
 ## Features
 
 - **Multiple Voice Modes**: Choose between Speech-to-Text, Voice Chat, or Realtime conversations
+- **Floating STT** (macOS): System-wide floating voice button with automatic text insertion
 - **Drop-in Integration**: Add voice capabilities with a single `CodeWhisperButton`
 - **Configurable**: Control which voice modes are available per-button
+- **Prompt Enhancement**: AI-powered text improvement for transcriptions
 - **Claude Code Integration**: Execute coding tasks through voice commands (Realtime mode)
 - **MCP Server Support**: Extend capabilities with Model Context Protocol servers
 - **Multi-Platform**: Works on macOS, iOS, and visionOS
@@ -20,6 +22,82 @@ CodeWhisper supports three voice modes, each suited for different use cases:
 | **Speech to Text** (`.stt`) | Tap to record, transcribes to text | Text input via voice, dictation |
 | **Voice Chat** (`.sttWithTTS`) | Speak and hear responses | Conversational AI with voice I/O |
 | **Realtime** (`.realtime`) | Full bidirectional conversation | Live coding assistance, complex interactions |
+
+## Floating STT (macOS)
+
+A floating voice-to-text button that works system-wide on macOS. Records speech, transcribes it, and automatically inserts text into any focused text field.
+
+### Quick Start
+
+```swift
+import CodeWhisper
+
+// Menu bar mode (default) - shows in menu bar
+FloatingSTT.configure(apiKey: "sk-...")
+FloatingSTT.show()
+
+// Embedded mode - no menu bar, hover for settings
+FloatingSTT.configure(apiKey: "sk-...", embedded: true)
+FloatingSTT.show()
+
+// Toggle visibility
+FloatingSTT.toggle()
+
+// Hide
+FloatingSTT.hide()
+```
+
+### Display Modes
+
+| Mode | Menu Bar | Settings Access | Use Case |
+|------|----------|-----------------|----------|
+| **Menu Bar** (default) | Yes | Via menu bar item | Standalone usage |
+| **Embedded** | No | Hover to reveal gear | Host app integration |
+
+### Configuration
+
+```swift
+var config = FloatingSTTConfiguration()
+config.displayMode = .embedded
+config.enhancementEnabled = true  // AI text enhancement
+config.customEnhancementPrompt = "Fix grammar and punctuation"
+config.rememberPosition = true
+
+FloatingSTT.configure(apiKey: "sk-...", configuration: config)
+```
+
+### Event Handling
+
+```swift
+FloatingSTT.shared.onTextInserted = { text, result in
+    print("Inserted: \(text)")
+}
+
+FloatingSTT.shared.onError = { error in
+    print("Error: \(error)")
+}
+```
+
+### Permissions
+
+Floating STT requires:
+- **Microphone**: For recording speech
+- **Accessibility** (optional): For direct text insertion into other apps
+
+Without Accessibility permission, text is copied to clipboard and Cmd+V is simulated.
+
+```swift
+// Check permission
+if FloatingSTT.hasAccessibilityPermission {
+    // Direct insertion available
+}
+
+// Request permission
+FloatingSTT.requestAccessibilityPermission()
+
+// Open System Settings
+FloatingSTT.openAccessibilitySettings()
+```
 
 ## Installation
 
@@ -294,13 +372,18 @@ Note: Full Claude Code functionality requires sandbox disabled (Developer ID dis
 - **TTSConfiguration**: TTS provider and voice settings
 - **VoiceMode**: Enum defining available modes (`.stt`, `.sttWithTTS`, `.realtime`)
 
+### Floating STT (macOS only)
+- **FloatingSTT**: Public API enum for floating button control
+- **FloatingSTTConfiguration**: Position, enhancement, display mode settings
+- **FloatingSTTManager**: Core orchestrator with callbacks and state
+
 ## Platform Support
 
-| Platform | Minimum Version |
-|----------|-----------------|
-| macOS | 15.0+ |
-| iOS | 17.0+ |
-| visionOS | 1.0+ |
+| Platform | Minimum Version | Notes |
+|----------|-----------------|-------|
+| macOS | 15.0+ | Full feature support including Floating STT |
+| iOS | 17.0+ | Voice modes only (no Floating STT) |
+| visionOS | 1.0+ | Voice modes only (no Floating STT) |
 
 ## Dependencies
 

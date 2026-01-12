@@ -16,11 +16,29 @@ import SwiftOpenAI
 /// - Automatically inserts transcribed text into the focused text field
 /// - Works in any application
 ///
+/// ## Display Modes
+///
+/// The floating button supports two display modes:
+///
+/// ### Menu Bar Mode (default)
+/// Shows a menu bar item for controlling the button and accessing settings.
+/// Best for standalone usage.
+///
+/// ### Embedded Mode
+/// No menu bar item - designed for use as a feature within a host Mac app.
+/// Settings are accessed via a hover button that appears next to the main button.
+///
 /// ## Usage
 ///
 /// ### Simple (with API key):
 /// ```swift
 /// FloatingSTT.configure(apiKey: "sk-...")
+/// FloatingSTT.show()
+/// ```
+///
+/// ### Embedded mode (no menu bar):
+/// ```swift
+/// FloatingSTT.configure(apiKey: "sk-...", embedded: true)
 /// FloatingSTT.show()
 /// ```
 ///
@@ -69,6 +87,40 @@ public enum FloatingSTT {
     /// - Parameter service: The OpenAI service to use for Whisper transcription
     @MainActor
     public static func configure(service: OpenAIService) {
+        shared.configure(service: service)
+    }
+
+    /// Configure for embedded mode with an API key
+    ///
+    /// Embedded mode is designed for use within a host Mac app:
+    /// - No menu bar item is created
+    /// - Settings are accessed via a hover button next to the main button
+    ///
+    /// - Parameters:
+    ///   - apiKey: The OpenAI API key to use for Whisper transcription
+    ///   - embedded: If true, uses embedded mode (no menu bar, hover settings)
+    @MainActor
+    public static func configure(apiKey: String, embedded: Bool) {
+        var config = FloatingSTTConfiguration.load()
+        config.displayMode = embedded ? .embedded : .menuBar
+        shared.configuration = config
+        shared.configure(apiKey: apiKey)
+    }
+
+    /// Configure for embedded mode with a custom OpenAI service
+    ///
+    /// Embedded mode is designed for use within a host Mac app:
+    /// - No menu bar item is created
+    /// - Settings are accessed via a hover button next to the main button
+    ///
+    /// - Parameters:
+    ///   - service: The OpenAI service to use for Whisper transcription
+    ///   - embedded: If true, uses embedded mode (no menu bar, hover settings)
+    @MainActor
+    public static func configure(service: OpenAIService, embedded: Bool) {
+        var config = FloatingSTTConfiguration.load()
+        config.displayMode = embedded ? .embedded : .menuBar
+        shared.configuration = config
         shared.configure(service: service)
     }
 

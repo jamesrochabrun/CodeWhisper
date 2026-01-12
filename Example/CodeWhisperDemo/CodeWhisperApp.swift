@@ -16,6 +16,7 @@ enum VoiceModeStyle: String, CaseIterable {
 enum DemoOption: String, CaseIterable, Identifiable {
   case voiceModes = "Voice Modes Demo"
   case floatingButton = "Floating Button"
+  case floatingButtonEmbedded = "Floating Button (Embedded)"
 
   var id: String { rawValue }
 
@@ -25,6 +26,8 @@ enum DemoOption: String, CaseIterable, Identifiable {
       return "Full and Inline voice mode demonstrations"
     case .floatingButton:
       return "Launch a floating STT button on screen"
+    case .floatingButtonEmbedded:
+      return "Floating button without menu bar - hover for settings"
     }
   }
 
@@ -34,6 +37,8 @@ enum DemoOption: String, CaseIterable, Identifiable {
       return "waveform"
     case .floatingButton:
       return "bubble.left.and.bubble.right"
+    case .floatingButtonEmbedded:
+      return "bubble.left.and.bubble.right.fill"
     }
   }
 }
@@ -108,6 +113,13 @@ struct DemoListView: View {
               DemoOptionRow(option: option)
             }
             .buttonStyle(.plain)
+          case .floatingButtonEmbedded:
+            Button {
+              toggleFloatingButtonEmbedded()
+            } label: {
+              DemoOptionRow(option: option)
+            }
+            .buttonStyle(.plain)
           }
         }
         .listRowBackground(Color.white.opacity(0.05))
@@ -117,7 +129,7 @@ struct DemoListView: View {
         switch option {
         case .voiceModes:
           VoiceModesView()
-        case .floatingButton:
+        case .floatingButton, .floatingButtonEmbedded:
           EmptyView()
         }
       }
@@ -129,6 +141,16 @@ struct DemoListView: View {
     #if os(macOS)
     FloatingSTT.configure(apiKey: settingsManager.apiKey)
     FloatingSTT.show()
+    #endif
+  }
+
+  private func toggleFloatingButtonEmbedded() {
+    #if os(macOS)
+    // Only configure if not already visible
+    if !FloatingSTT.isVisible {
+      FloatingSTT.configure(apiKey: settingsManager.apiKey, embedded: true)
+    }
+    FloatingSTT.toggle()
     #endif
   }
 }

@@ -10,6 +10,14 @@ import AppKit
 import Foundation
 import CoreGraphics
 
+/// Display mode for the floating STT feature
+public enum FloatingSTTDisplayMode: String, Codable, Sendable {
+  /// Menu bar mode: Shows NSStatusItem, settings via window (default)
+  case menuBar
+  /// Embedded mode: No menu bar, settings via popover on hover
+  case embedded
+}
+
 /// Configuration for the floating STT button
 public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
 
@@ -44,6 +52,9 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
     /// Custom system prompt for enhancement (nil = use default)
     public var customEnhancementPrompt: String?
 
+    /// Display mode (menuBar or embedded)
+    public var displayMode: FloatingSTTDisplayMode
+
     // MARK: - Computed Properties
 
     /// Returns the enhancement prompt to use (custom or default)
@@ -68,7 +79,8 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         showVisualFeedback: Bool = true,
         idleOpacity: CGFloat = 1.0,
         enhancementEnabled: Bool = false,
-        customEnhancementPrompt: String? = nil
+        customEnhancementPrompt: String? = nil,
+        displayMode: FloatingSTTDisplayMode = .menuBar
     ) {
         self.position = position
         self.rememberPosition = rememberPosition
@@ -77,6 +89,7 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         self.idleOpacity = idleOpacity
         self.enhancementEnabled = enhancementEnabled
         self.customEnhancementPrompt = customEnhancementPrompt
+        self.displayMode = displayMode
     }
 
     // MARK: - Codable
@@ -90,6 +103,7 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         case idleOpacity
         case enhancementEnabled
         case customEnhancementPrompt
+        case displayMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -106,6 +120,7 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         idleOpacity = try container.decodeIfPresent(CGFloat.self, forKey: .idleOpacity) ?? 1.0
         enhancementEnabled = try container.decodeIfPresent(Bool.self, forKey: .enhancementEnabled) ?? false
         customEnhancementPrompt = try container.decodeIfPresent(String.self, forKey: .customEnhancementPrompt)
+        displayMode = try container.decodeIfPresent(FloatingSTTDisplayMode.self, forKey: .displayMode) ?? .menuBar
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -119,6 +134,7 @@ public struct FloatingSTTConfiguration: Codable, Sendable, Equatable {
         try container.encode(idleOpacity, forKey: .idleOpacity)
         try container.encode(enhancementEnabled, forKey: .enhancementEnabled)
         try container.encodeIfPresent(customEnhancementPrompt, forKey: .customEnhancementPrompt)
+        try container.encode(displayMode, forKey: .displayMode)
     }
 
     // MARK: - Defaults

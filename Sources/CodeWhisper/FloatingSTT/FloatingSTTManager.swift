@@ -124,6 +124,8 @@ public final class FloatingSTTManager {
     }
 
     private func setupMenuBarIfNeeded() {
+        // Only create menu bar for menuBar mode
+        guard configuration.displayMode == .menuBar else { return }
         guard menuBarController == nil else { return }
         menuBarController = FloatingSTTMenuBarController(floatingManager: self)
     }
@@ -194,7 +196,11 @@ public final class FloatingSTTManager {
     // MARK: - Settings
 
     /// Show the settings window
+    /// Note: In embedded mode, settings are shown via popover from the floating button
     public func showSettings() {
+        // In embedded mode, settings are accessed via hover popover, not a window
+        guard configuration.displayMode == .menuBar else { return }
+
         if settingsWindowController == nil {
             settingsWindowController = FloatingSTTSettingsWindowController()
         }
@@ -236,7 +242,18 @@ public final class FloatingSTTManager {
     private func createWindowControllerIfNeeded() {
         guard windowController == nil else { return }
 
-        let controller = FloatingSTTWindowController(buttonSize: buttonSize)
+        let isEmbedded = configuration.displayMode == .embedded
+
+        // For embedded mode, use wider panel to accommodate settings button on hover
+        // Main button (88) + spacing (6) + settings button (28) + extra padding (10) = 132
+        let panelSize: CGSize
+        if isEmbedded {
+            panelSize = CGSize(width: buttonSize.width + 6 + 28 + 10, height: buttonSize.height)
+        } else {
+            panelSize = buttonSize
+        }
+
+        let controller = FloatingSTTWindowController(buttonSize: panelSize)
 
         // Set up position change callback
         controller.onPositionChanged = { [weak self] position in
@@ -244,29 +261,58 @@ public final class FloatingSTTManager {
             self.configuration.position = position
         }
 
-        // Set up the button view
-        controller.setContent { [weak self] in
-            guard let self = self else {
-                return FloatingSTTButtonView(
-                    sttManager: STTManager(),
-                    buttonSize: CGSize(width: 72, height: 44),
-                    canInsertText: false,
-                    onTap: {}
+        // Set up the button view based on mode
+        if isEmbedded {
+            controller.setContent { [weak self] in
+                guard let self = self else {
+                    return FloatingSTTEmbeddedContainerView(
+                        sttManager: STTManager(),
+                        floatingManager: FloatingSTTManager(),
+                        buttonSize: CGSize(width: 88, height: 28),
+                        canInsertText: false,
+                        onTap: {},
+                        onLongPress: nil
+                    )
+                }
+
+                return FloatingSTTEmbeddedContainerView(
+                    sttManager: self.sttManager,
+                    floatingManager: self,
+                    buttonSize: self.buttonSize,
+                    canInsertText: self.canInsertText,
+                    onTap: { [weak self] in
+                        self?.toggleRecording()
+                    },
+                    onLongPress: { [weak self] in
+                        self?.openAccessibilitySettings()
+                    }
                 )
             }
-
-            return FloatingSTTButtonView(
-                sttManager: self.sttManager,
-                buttonSize: self.buttonSize,
-                canInsertText: self.canInsertText,
-                onTap: { [weak self] in
-                    self?.toggleRecording()
-                },
-                onLongPress: { [weak self] in
-                    // Could show settings or context menu
-                    self?.openAccessibilitySettings()
+        } else {
+            // Menu bar mode - standard button view
+            controller.setContent { [weak self] in
+                guard let self = self else {
+                    return FloatingSTTButtonView(
+                        sttManager: STTManager(),
+                        buttonSize: CGSize(width: 72, height: 44),
+                        canInsertText: false,
+                        onTap: {}
+                    )
                 }
-            )
+
+                return FloatingSTTButtonView(
+                    sttManager: self.sttManager,
+                    buttonSize: self.buttonSize,
+                    canInsertText: self.canInsertText,
+                    onTap: { [weak self] in
+                        self?.toggleRecording()
+                    },
+                    onLongPress: { [weak self] in
+                        // Could show settings or context menu
+                        self?.openAccessibilitySettings()
+                    }
+                )
+            }
         }
 
         self.windowController = controller
