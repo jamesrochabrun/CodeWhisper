@@ -47,7 +47,11 @@ struct FloatingSTTEmbeddedContainerView: View {
       )
     }
     .popover(isPresented: $showSettingsPopover, arrowEdge: .bottom) {
-      FloatingSTTSettingsView(manager: floatingManager, isPopover: true)
+      FloatingSTTSettingsView(
+        manager: floatingManager,
+        isPopover: true,
+        onDismiss: { showSettingsPopover = false }
+      )
     }
   }
 }
