@@ -12,16 +12,23 @@ import SwiftUI
 public struct FloatingSTTButtonView: View {
   
   // MARK: - Properties
-  
+
   @Bindable var sttManager: STTManager
   let buttonWidth: CGFloat
   let buttonHeight: CGFloat
   let canInsertText: Bool
   let onTap: () -> Void
   let onLongPress: (() -> Void)?
-  
+
   @State private var isPressed: Bool = false
+  @State private var isHovered: Bool = false
   @Environment(\.colorScheme) private var colorScheme
+
+  // MARK: - Collapsed State Constants
+
+  private let collapsedWidth: CGFloat = 48
+  private let collapsedHeight: CGFloat = 6
+  private let expandAnimation = Animation.spring(response: 0.35, dampingFraction: 0.7)
 
   /// Whether button should appear pushed (recording or transcribing)
   private var isPushed: Bool {
@@ -31,6 +38,27 @@ public struct FloatingSTTButtonView: View {
   /// Whether currently transcribing (for pulse animation)
   private var isTranscribing: Bool {
     sttManager.state.isTranscribing
+  }
+
+  /// Whether the button is in an error state
+  private var isError: Bool {
+    if case .error = sttManager.state { return true }
+    return false
+  }
+
+  /// Whether the button should display in expanded state
+  private var shouldBeExpanded: Bool {
+    isHovered || sttManager.state.isRecording || sttManager.state.isTranscribing || isError
+  }
+
+  /// Current width based on expanded/collapsed state
+  private var currentWidth: CGFloat {
+    shouldBeExpanded ? buttonWidth : collapsedWidth
+  }
+
+  /// Current height based on expanded/collapsed state
+  private var currentHeight: CGFloat {
+    shouldBeExpanded ? buttonHeight : collapsedHeight
   }
   // MARK: - Initialization
   
@@ -66,20 +94,42 @@ public struct FloatingSTTButtonView: View {
   }
   
   // MARK: - Body
-  
+
   public var body: some View {
+    // Fixed outer container - always expanded size for centered animation
     ZStack {
-      // 3D Button background with depth
-      button3DBackground
-      
-      // Waveform bars - always visible, different states
-      waveformContent
-        .frame(width: buttonWidth * 0.6, height: buttonHeight * 0.5)
+      // Animated inner content that grows/shrinks from center
+      ZStack {
+        if shouldBeExpanded {
+          // Expanded state - full 3D button
+          button3DBackground
+            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+
+          // Waveform bars - visible in expanded state
+          waveformContent
+            .frame(width: buttonWidth * 0.6, height: buttonHeight * 0.5)
+            .transition(.opacity)
+        } else {
+          // Collapsed state - thin glass capsule
+          collapsedGlassCapsule
+            .frame(width: collapsedWidth, height: collapsedHeight)
+            .transition(.opacity.combined(with: .scale(scale: 1.2)))
+        }
+      }
+      .frame(width: currentWidth, height: currentHeight)
+      .animation(expandAnimation, value: shouldBeExpanded)
     }
-    .frame(width: buttonWidth, height: buttonHeight)
+    .frame(width: buttonWidth, height: buttonHeight) // Fixed outer frame
+    .contentShape(Rectangle()) // Ensure full area is tappable
     .scaleEffect(isPressed ? 0.94 : 1.0)
     .offset(y: isPressed ? 2 : 0) // Push down effect when pressed
     .animation(.easeInOut(duration: 0.1), value: isPressed)
+    .onHover { hovering in
+      // Only track hover in idle state
+      if sttManager.state.isIdle {
+        isHovered = hovering
+      }
+    }
     .onTapGesture {
       onTap()
     }
@@ -88,6 +138,29 @@ public struct FloatingSTTButtonView: View {
     }, perform: {
       onLongPress?()
     })
+  }
+
+  // MARK: - Collapsed Glass Capsule
+
+  @ViewBuilder
+  private var collapsedGlassCapsule: some View {
+    Capsule()
+      .fill(.ultraThinMaterial)
+      .overlay(
+        Capsule()
+          .strokeBorder(
+            LinearGradient(
+              colors: [
+                .white.opacity(colorScheme == .dark ? 0.3 : 0.5),
+                .white.opacity(colorScheme == .dark ? 0.1 : 0.2)
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            ),
+            lineWidth: 0.5
+          )
+      )
+      .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
   }
   
   // MARK: - 3D Button Background

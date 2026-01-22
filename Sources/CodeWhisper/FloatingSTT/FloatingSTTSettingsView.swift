@@ -19,14 +19,31 @@ public struct FloatingSTTSettingsView: View {
     /// Whether shown in a popover (affects sizing/padding)
     let isPopover: Bool
 
-    public init(manager: FloatingSTTManager, isPopover: Bool = false) {
+    /// Callback to dismiss the popover (only used when isPopover is true)
+    let onDismiss: (() -> Void)?
+
+    public init(manager: FloatingSTTManager, isPopover: Bool = false, onDismiss: (() -> Void)? = nil) {
         self.manager = manager
         self.isPopover = isPopover
+        self.onDismiss = onDismiss
     }
 
     public var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Close button for popover mode
+                if isPopover, let onDismiss {
+                    HStack {
+                        Spacer()
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 20))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 FloatingButtonSection(hasAccessibilityPermission: $hasAccessibilityPermission)
                 PromptEnhancementSection(manager: manager)
             }

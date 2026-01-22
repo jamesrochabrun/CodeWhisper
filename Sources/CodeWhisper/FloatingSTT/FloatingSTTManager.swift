@@ -144,20 +144,29 @@ public final class FloatingSTTManager {
       AppLogger.warning("FloatingSTTManager: Cannot show - not configured. Call configure(transcriptionService:) first.")
       return
     }
-    
+
     createWindowControllerIfNeeded()
-    
-    // Use centered default position if this looks like the old hardcoded default (x: 20)
-    // This migrates existing users to the new centered position
-    let savedPosition = configuration.position
-    let isOldDefault = savedPosition.x < 50 && savedPosition.y < 150
-    let position = (configuration.rememberPosition && !isOldDefault) ? savedPosition : FloatingSTTConfiguration.defaultPosition
+
+    // Always use fixed centered position above dock
+    let position = calculateFixedPosition()
     windowController?.show(at: position)
     isVisible = true
     menuBarController?.updateMenuState()
-    
+
     // Start monitoring for focused text fields
     startFocusMonitoring()
+  }
+
+  /// Calculate the fixed position: horizontally centered, above dock
+  private func calculateFixedPosition() -> CGPoint {
+    guard let screen = NSScreen.main else {
+      return CGPoint(x: 20, y: 100)
+    }
+    let screenFrame = screen.visibleFrame  // Excludes dock and menu bar
+    let buttonWidth: CGFloat = 88  // Use expanded width for positioning
+    let x = screenFrame.origin.x + (screenFrame.width - buttonWidth) / 2
+    let y = screenFrame.origin.y + 20  // 20pt above dock
+    return CGPoint(x: x, y: y)
   }
   
   /// Hide the floating button
@@ -244,13 +253,9 @@ public final class FloatingSTTManager {
     let panelSize = buttonSize
     
     let controller = FloatingSTTWindowController(buttonSize: panelSize)
-    
-    // Set up position change callback
-    controller.onPositionChanged = { [weak self] position in
-      guard let self = self, self.configuration.rememberPosition else { return }
-      self.configuration.position = position
-    }
-    
+
+    // Position is now fixed - no position change callback needed
+
     // Set up the button view based on mode
     if isEmbedded {
       controller.setContent { [weak self] in

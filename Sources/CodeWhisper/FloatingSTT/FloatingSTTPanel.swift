@@ -66,8 +66,8 @@ public final class FloatingSTTPanel: NSPanel {
         // Stay visible when app is not active
         hidesOnDeactivate = false
 
-        // Allow dragging by window background
-        isMovableByWindowBackground = true
+        // Fixed position - no dragging
+        isMovableByWindowBackground = false
 
         // Don't show in window lists
         isExcludedFromWindowsMenu = true
