@@ -165,9 +165,25 @@ public enum FloatingSTT: FloatingSTTInterface {
     manager.configure(transcriptionService: transcriptionService)
   }
 
+  /// Configure with both transcription and chat services (enables AI enhancement)
+  /// - Parameters:
+  ///   - transcriptionService: The transcription service to use
+  ///   - chatService: The chat service for AI enhancement
+  ///   - configuration: Optional configuration override
+  public static func configure(
+    transcriptionService: TranscriptionService,
+    chatService: ChatService,
+    configuration: FloatingSTTConfiguration? = nil
+  ) {
+    if let config = configuration {
+      manager.configuration = config
+    }
+    manager.configure(transcriptionService: transcriptionService, chatService: chatService)
+  }
+
   // MARK: - OpenAI Convenience Methods
 
-  /// Configure with an OpenAI API key
+  /// Configure with an OpenAI API key (transcription only, no AI enhancement)
   /// - Parameter apiKey: The OpenAI API key for Whisper transcription
   public static func configure(apiKey: String) {
     let service = OpenAIServiceFactory.service(apiKey: apiKey)
@@ -175,11 +191,40 @@ public enum FloatingSTT: FloatingSTTInterface {
     configure(transcriptionService: adapter, configuration: nil)
   }
 
-  /// Configure with a custom OpenAI service
+  /// Configure with an OpenAI API key (with AI enhancement enabled)
+  /// - Parameters:
+  ///   - apiKey: The OpenAI API key for Whisper transcription and chat
+  ///   - enableEnhancement: If true, configures chat service for AI enhancement
+  public static func configure(apiKey: String, enableEnhancement: Bool) {
+    let service = OpenAIServiceFactory.service(apiKey: apiKey)
+    let transcriptionAdapter = OpenAITranscriptionAdapter(service: service)
+    if enableEnhancement {
+      let chatAdapter = OpenAIChatAdapter(service: service)
+      configure(transcriptionService: transcriptionAdapter, chatService: chatAdapter)
+    } else {
+      configure(transcriptionService: transcriptionAdapter, configuration: nil)
+    }
+  }
+
+  /// Configure with a custom OpenAI service (transcription only, no AI enhancement)
   /// - Parameter service: The OpenAI service for Whisper transcription
   public static func configure(service: OpenAIService) {
     let adapter = OpenAITranscriptionAdapter(service: service)
     configure(transcriptionService: adapter, configuration: nil)
+  }
+
+  /// Configure with a custom OpenAI service (with AI enhancement enabled)
+  /// - Parameters:
+  ///   - service: The OpenAI service for Whisper transcription and chat
+  ///   - enableEnhancement: If true, configures chat service for AI enhancement
+  public static func configure(service: OpenAIService, enableEnhancement: Bool) {
+    let transcriptionAdapter = OpenAITranscriptionAdapter(service: service)
+    if enableEnhancement {
+      let chatAdapter = OpenAIChatAdapter(service: service)
+      configure(transcriptionService: transcriptionAdapter, chatService: chatAdapter)
+    } else {
+      configure(transcriptionService: transcriptionAdapter, configuration: nil)
+    }
   }
 
   /// Configure with an API key and display mode
@@ -194,6 +239,33 @@ public enum FloatingSTT: FloatingSTTInterface {
     }
   }
 
+  /// Configure with an API key, display mode, and enhancement option
+  /// - Parameters:
+  ///   - apiKey: The OpenAI API key for Whisper transcription and chat
+  ///   - embedded: If true, uses embedded mode (no menu bar)
+  ///   - enableEnhancement: If true, configures chat service for AI enhancement
+  public static func configure(apiKey: String, embedded: Bool, enableEnhancement: Bool) {
+    let service = OpenAIServiceFactory.service(apiKey: apiKey)
+    let transcriptionAdapter = OpenAITranscriptionAdapter(service: service)
+
+    var config: FloatingSTTConfiguration? = nil
+    if embedded {
+      var embeddedConfig = FloatingSTTConfiguration.load()
+      embeddedConfig.displayMode = .embedded
+      config = embeddedConfig
+    }
+
+    if enableEnhancement {
+      let chatAdapter = OpenAIChatAdapter(service: service)
+      if let config = config {
+        manager.configuration = config
+      }
+      manager.configure(transcriptionService: transcriptionAdapter, chatService: chatAdapter)
+    } else {
+      configure(transcriptionService: transcriptionAdapter, configuration: config)
+    }
+  }
+
   /// Configure with a custom OpenAI service and display mode
   /// - Parameters:
   ///   - service: The OpenAI service for Whisper transcription
@@ -203,6 +275,32 @@ public enum FloatingSTT: FloatingSTTInterface {
       configureEmbedded(service: service)
     } else {
       configure(service: service)
+    }
+  }
+
+  /// Configure with a custom OpenAI service, display mode, and enhancement option
+  /// - Parameters:
+  ///   - service: The OpenAI service for Whisper transcription and chat
+  ///   - embedded: If true, uses embedded mode (no menu bar)
+  ///   - enableEnhancement: If true, configures chat service for AI enhancement
+  public static func configure(service: OpenAIService, embedded: Bool, enableEnhancement: Bool) {
+    let transcriptionAdapter = OpenAITranscriptionAdapter(service: service)
+
+    var config: FloatingSTTConfiguration? = nil
+    if embedded {
+      var embeddedConfig = FloatingSTTConfiguration.load()
+      embeddedConfig.displayMode = .embedded
+      config = embeddedConfig
+    }
+
+    if enableEnhancement {
+      let chatAdapter = OpenAIChatAdapter(service: service)
+      if let config = config {
+        manager.configuration = config
+      }
+      manager.configure(transcriptionService: transcriptionAdapter, chatService: chatAdapter)
+    } else {
+      configure(transcriptionService: transcriptionAdapter, configuration: config)
     }
   }
 

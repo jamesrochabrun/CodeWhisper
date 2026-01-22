@@ -32,20 +32,21 @@ A floating voice-to-text button that works system-wide on macOS. Records speech,
 ```swift
 import CodeWhisper
 
-// Menu bar mode (default) - shows in menu bar
+// Simple setup (transcription only)
 FloatingSTT.configure(apiKey: "sk-...")
 FloatingSTT.show()
 
-// Embedded mode - no menu bar, right-click for settings
-FloatingSTT.configureEmbedded(apiKey: "sk-...")
+// With AI enhancement enabled (recommended)
+FloatingSTT.configure(apiKey: "sk-...", enableEnhancement: true)
+FloatingSTT.show()
+
+// Embedded mode (no menu bar)
+FloatingSTT.configure(apiKey: "sk-...", embedded: true, enableEnhancement: true)
 FloatingSTT.show()
 
 // With custom OpenAI service
-FloatingSTT.configure(service: myOpenAIService)
-FloatingSTT.show()
-
-// With custom transcription service
-FloatingSTT.configure(transcriptionService: myTranscriptionService)
+let service = OpenAIServiceFactory.service(apiKey: "sk-...")
+FloatingSTT.configure(service: service, enableEnhancement: true)
 FloatingSTT.show()
 
 // Toggle visibility
@@ -76,6 +77,71 @@ FloatingSTT.configure(
     transcriptionService: myTranscriptionService,
     configuration: config
 )
+```
+
+### AI Enhancement Setup
+
+To enable "Enhance with AI" feature, use `enableEnhancement: true`:
+
+```swift
+// With API key
+FloatingSTT.configure(apiKey: "sk-...", enableEnhancement: true)
+
+// With API key + embedded mode
+FloatingSTT.configure(apiKey: "sk-...", embedded: true, enableEnhancement: true)
+
+// With custom OpenAI service
+let service = OpenAIServiceFactory.service(apiKey: "sk-...")
+FloatingSTT.configure(service: service, enableEnhancement: true)
+
+// With custom service + embedded mode
+FloatingSTT.configure(service: service, embedded: true, enableEnhancement: true)
+```
+
+#### Advanced: Custom Services
+
+For full control, provide explicit transcription and chat services:
+
+```swift
+import CodeWhisper
+import SwiftOpenAI
+
+let openAIService = OpenAIServiceFactory.service(apiKey: "sk-...")
+
+FloatingSTT.configure(
+    transcriptionService: OpenAITranscriptionAdapter(service: openAIService),
+    chatService: OpenAIChatAdapter(service: openAIService)
+)
+```
+
+**Note:** If you only call `configure(transcriptionService:)` without a `chatService`, the enhancement toggle will appear in settings but won't function. You'll see a warning in the logs:
+```
+[FloatingSTTManager] Enhancement is enabled but no chatService provided.
+```
+
+#### Custom Chat Services
+
+The `ChatService` protocol allows any LLM provider to be used for enhancement:
+
+```swift
+public protocol ChatService: Sendable {
+    func chat(
+        messages: [ChatMessage],
+        model: String,
+        maxTokens: Int?,
+        temperature: Double?
+    ) async throws -> String
+}
+```
+
+Create your own adapter for Anthropic, Groq, or any other provider:
+
+```swift
+struct AnthropicChatAdapter: ChatService {
+    func chat(messages: [ChatMessage], model: String, maxTokens: Int?, temperature: Double?) async throws -> String {
+        // Your implementation here
+    }
+}
 ```
 
 ### Event Handling

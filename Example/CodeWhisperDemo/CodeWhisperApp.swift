@@ -139,7 +139,7 @@ struct DemoListView: View {
 
   private func launchFloatingButton() {
     #if os(macOS)
-    FloatingSTT.configure(apiKey: settingsManager.apiKey)
+    FloatingSTT.configure(apiKey: settingsManager.apiKey, enableEnhancement: true)
     FloatingSTT.show()
     #endif
   }
@@ -148,7 +148,7 @@ struct DemoListView: View {
     #if os(macOS)
     // Only configure if not already visible
     if !FloatingSTT.isVisible {
-      FloatingSTT.configure(apiKey: settingsManager.apiKey, embedded: true)
+      FloatingSTT.configure(apiKey: settingsManager.apiKey, embedded: true, enableEnhancement: true)
     }
     FloatingSTT.toggle()
     #endif
