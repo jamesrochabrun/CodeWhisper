@@ -37,7 +37,15 @@ FloatingSTT.configure(apiKey: "sk-...")
 FloatingSTT.show()
 
 // Embedded mode - no menu bar, right-click for settings
-FloatingSTT.configure(apiKey: "sk-...", embedded: true)
+FloatingSTT.configureEmbedded(apiKey: "sk-...")
+FloatingSTT.show()
+
+// With custom OpenAI service
+FloatingSTT.configure(service: myOpenAIService)
+FloatingSTT.show()
+
+// With custom transcription service
+FloatingSTT.configure(transcriptionService: myTranscriptionService)
 FloatingSTT.show()
 
 // Toggle visibility
@@ -57,23 +65,27 @@ FloatingSTT.hide()
 ### Configuration
 
 ```swift
-var config = FloatingSTTConfiguration()
+// Using FloatingSTTConfiguration
+var config = FloatingSTTConfiguration.load()
 config.displayMode = .embedded
 config.enhancementEnabled = true  // AI text enhancement
 config.customEnhancementPrompt = "Fix grammar and punctuation"
 config.rememberPosition = true
 
-FloatingSTT.configure(apiKey: "sk-...", configuration: config)
+FloatingSTT.configure(
+    transcriptionService: myTranscriptionService,
+    configuration: config
+)
 ```
 
 ### Event Handling
 
 ```swift
-FloatingSTT.shared.onTextInserted = { text, result in
+FloatingSTT.manager.onTextInserted = { text, result in
     print("Inserted: \(text)")
 }
 
-FloatingSTT.shared.onError = { error in
+FloatingSTT.manager.onError = { error in
     print("Error: \(error)")
 }
 ```
@@ -373,9 +385,10 @@ Note: Full Claude Code functionality requires sandbox disabled (Developer ID dis
 - **VoiceMode**: Enum defining available modes (`.stt`, `.sttWithTTS`, `.realtime`)
 
 ### Floating STT (macOS only)
-- **FloatingSTT**: Public API enum for floating button control
+- **FloatingSTT**: Public API for floating button control (access manager via `FloatingSTT.manager`)
 - **FloatingSTTConfiguration**: Position, enhancement, display mode settings
 - **FloatingSTTManager**: Core orchestrator with callbacks and state
+- **TranscriptionService**: Protocol for custom transcription implementations
 
 ## Platform Support
 
