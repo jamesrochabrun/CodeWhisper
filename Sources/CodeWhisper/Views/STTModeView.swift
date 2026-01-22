@@ -157,12 +157,6 @@ public struct STTModeView: View {
   // MARK: - STT Initialization
   
   private func initializeSTTMode() async {
-    guard let service = serviceManager.service else {
-      return
-    }
-    
-    sttManager.configure(service: service)
-    
     // Set up transcription callback
     sttManager.onTranscription = { text in
       // Update binding

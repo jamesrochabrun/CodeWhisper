@@ -37,7 +37,7 @@ public final class STTManager {
   
   // MARK: - Private Properties
   
-  private var service: OpenAIService?
+  private var transcriptionService: TranscriptionService?
   private var recorder: STTRecorder?
   private var recordingTask: Task<Void, Never>?
   private var audioBuffers: [AVAudioPCMBuffer] = []
@@ -61,11 +61,11 @@ public final class STTManager {
   #endif
 
   // MARK: - Configuration
-  
-  /// Configure the manager with an OpenAI service for transcription
-  /// - Parameter service: The OpenAI service to use for Whisper transcription
-  public func configure(service: OpenAIService) {
-    self.service = service
+
+  public func configure(transcriptionService: TranscriptionService) {
+    AppLogger.info("[STTManager] configure(transcriptionService:) called - service type: \(type(of: transcriptionService))")
+    self.transcriptionService = transcriptionService
+    AppLogger.info("[STTManager] TranscriptionService configured successfully")
   }
   
   // MARK: - Public Methods
@@ -73,12 +73,16 @@ public final class STTManager {
   /// Toggle recording state (tap-to-toggle behavior)
   /// Call this when the user taps the record button
   public func toggleRecording() async {
+    AppLogger.info("[STTManager] toggleRecording() called, current state: \(state)")
     switch state {
     case .idle, .error:
+      AppLogger.info("[STTManager] State is idle/error, starting recording")
       await startRecording()
     case .recording:
+      AppLogger.info("[STTManager] State is recording, stopping and transcribing")
       await stopRecordingAndTranscribe()
     case .transcribing:
+      AppLogger.info("[STTManager] State is transcribing, ignoring tap")
       // Ignore taps while transcribing
       break
     }
@@ -213,23 +217,18 @@ public final class STTManager {
       audioBuffers.removeAll()
 
       // Check service is configured
-      guard let service = service else {
+      guard let service = transcriptionService else {
         throw NSError(domain: "STTManager", code: 2, userInfo: [
           NSLocalizedDescriptionKey: "OpenAI service not configured. Call configure(service:) first."
         ])
       }
 
-      // Create transcription request
-      // Use "json" format so response can be properly parsed
-      let parameters = AudioTranscriptionParameters(
-        fileName: "recording.wav",
-        file: audioData,
-        model: .custom(model: "gpt-4o-mini-transcribe"),
-        responseFormat: "json"
-      )
-
       // Call Whisper API
-      let result = try await service.createTranscription(parameters: parameters)
+      let result = try await service.transcribe(
+        audioData: audioData,
+        fileName: "recording.wav",
+        model: "whisper-001",
+        responseFormat: "json")
 
       // Success - update state and call callback
       state = .idle
@@ -363,7 +362,7 @@ public final class STTManager {
   
   private func requestMicrophonePermission() async -> Bool {
 #if os(macOS)
-    let currentPermission = await AVAudioApplication.shared.recordPermission
+    let currentPermission = AVAudioApplication.shared.recordPermission
     
     if currentPermission == .granted {
       return true

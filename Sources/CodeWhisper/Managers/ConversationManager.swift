@@ -435,7 +435,7 @@ public final class ConversationManager {
       )
       
       // Send to session on RealtimeActor
-      try await Task { @RealtimeActor in
+      await Task { @RealtimeActor in
         await session.sendMessage(
           OpenAIRealtimeConversationItemCreate(item: item)
         )
