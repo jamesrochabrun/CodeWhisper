@@ -22,6 +22,7 @@ public struct FloatingSTTButtonView: View {
 
   @State private var isPressed: Bool = false
   @State private var isHovered: Bool = false
+  @State private var forceCollapsed: Bool = false
   @Environment(\.colorScheme) private var colorScheme
 
   // MARK: - Collapsed State Constants
@@ -48,7 +49,8 @@ public struct FloatingSTTButtonView: View {
 
   /// Whether the button should display in expanded state
   private var shouldBeExpanded: Bool {
-    isHovered || sttManager.state.isRecording || sttManager.state.isTranscribing || isError
+    guard !forceCollapsed else { return false }
+    return isHovered || sttManager.state.isRecording || sttManager.state.isTranscribing || isError
   }
 
   /// Current width based on expanded/collapsed state
@@ -105,9 +107,9 @@ public struct FloatingSTTButtonView: View {
           button3DBackground
             .transition(.opacity.combined(with: .scale(scale: 0.8)))
 
-          // Waveform bars - visible in expanded state
+          // Waveform bars and status indicator - visible in expanded state
           waveformContent
-            .frame(width: buttonWidth * 0.6, height: buttonHeight * 0.5)
+            .frame(height: buttonHeight * 0.5)
             .transition(.opacity)
         } else {
           // Collapsed state - thin glass capsule
@@ -138,6 +140,18 @@ public struct FloatingSTTButtonView: View {
     }, perform: {
       onLongPress?()
     })
+    .onChange(of: sttManager.state) { oldValue, newValue in
+      // Auto-collapse on successful completion (transcribing → idle)
+      if oldValue.isTranscribing && newValue.isIdle {
+        forceCollapsed = true
+        isHovered = false
+        // Reset after delay to allow re-expansion on hover
+        Task { @MainActor in
+          try? await Task.sleep(for: .milliseconds(300))
+          forceCollapsed = false
+        }
+      }
+    }
   }
 
   // MARK: - Collapsed Glass Capsule
@@ -320,9 +334,23 @@ public struct FloatingSTTButtonView: View {
   }
 
   // MARK: - Waveform Content
-  
+
   @ViewBuilder
   private var waveformContent: some View {
+    HStack(spacing: 6) {
+      // Waveform bars
+      waveformBars
+        .frame(width: buttonWidth * 0.5)
+
+      // Status indicator on right (recording/loading)
+      if sttManager.state.isRecording || sttManager.state.isTranscribing {
+        StatusIndicator(state: sttManager.state)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var waveformBars: some View {
     switch sttManager.state {
     case .idle:
       // Uniform height bars for idle state
@@ -394,9 +422,54 @@ public struct FloatingSTTButtonView: View {
 
 }
 
+// MARK: - Status Indicator
+
+/// Pulsating status indicator for recording and loading states
+struct StatusIndicator: View {
+  let state: STTRecordingState
+  @State private var isPulsing = false
+
+  var body: some View {
+    Group {
+      switch state {
+      case .recording:
+        // Red pulsating circle
+        Circle()
+          .fill(Color.red)
+          .frame(width: 8, height: 8)
+          .opacity(isPulsing ? 0.4 : 1.0)
+          .animation(
+            .easeInOut(duration: 0.6).repeatForever(autoreverses: true),
+            value: isPulsing
+          )
+      case .transcribing:
+        // Loading dots (3 dots with staggered animation)
+        HStack(spacing: 2) {
+          ForEach(0..<3, id: \.self) { index in
+            Circle()
+              .fill(Color.white.opacity(0.8))
+              .frame(width: 4, height: 4)
+              .opacity(isPulsing ? 0.3 : 1.0)
+              .animation(
+                .easeInOut(duration: 0.5)
+                  .repeatForever(autoreverses: true)
+                  .delay(Double(index) * 0.15),
+                value: isPulsing
+              )
+          }
+        }
+      default:
+        EmptyView()
+      }
+    }
+    .onAppear { isPulsing = true }
+    .onDisappear { isPulsing = false }
+  }
+}
+
 // MARK: - Floating Waveform Bars
 
-/// Compact waveform visualization for the floating buttonSiento.
+/// Compact waveform visualization for the floating button
 struct FloatingWaveformBars: View {
 
   let levels: [Float]

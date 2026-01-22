@@ -102,13 +102,16 @@ public final class FloatingSTTManager {
   
   // MARK: - Configuration
 
-  /// Configure with a transcription service
+  /// Configure with a transcription service only (enhancement will NOT work)
   public func configure(transcriptionService: TranscriptionService) {
     AppLogger.info("[FloatingSTTManager] configure(transcriptionService:) called")
     sttManager.configure(transcriptionService: transcriptionService)
     isConfigured = true
     setupMenuBarIfNeeded()
     AppLogger.info("[FloatingSTTManager] Configuration complete (transcriptionService only)")
+    if configuration.enhancementEnabled {
+      AppLogger.warning("[FloatingSTTManager] Enhancement is enabled but no chatService provided. Use configure(transcriptionService:chatService:) to enable AI enhancement.")
+    }
   }
 
   public func configure(transcriptionService: TranscriptionService, chatService: ChatService) {

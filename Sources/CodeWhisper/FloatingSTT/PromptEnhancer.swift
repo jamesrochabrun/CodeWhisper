@@ -39,12 +39,14 @@ public final class PromptEnhancer {
 
   /// Configure the enhancer with a SwiftOpenAI service
   public func configure(service: OpenAIService) {
+    AppLogger.info("[PromptEnhancer] Configured with SwiftOpenAI service")
     self.service = service
     self.chatService = nil
   }
 
   /// Configure the enhancer with a ChatService (supports SwiftAIKit)
   public func configure(chatService: ChatService) {
+    AppLogger.info("[PromptEnhancer] Configured with ChatService")
     self.chatService = chatService
     self.service = nil
   }
@@ -61,26 +63,40 @@ public final class PromptEnhancer {
     model: String,
     systemPrompt: String
   ) async throws -> String {
+    AppLogger.debug("[PromptEnhancer] Starting enhancement - text length: \(text.count), model: \(model)")
+
     // Skip enhancement for very short text
     guard text.count > 2 else {
+      AppLogger.debug("[PromptEnhancer] Skipping - text too short (≤2 chars)")
       return text
     }
 
+    let startTime = Date()
+
     // Use ChatService if available, otherwise fall back to SwiftOpenAI service
     if let chatService = chatService {
-      return try await enhanceWithChatService(
+      AppLogger.debug("[PromptEnhancer] Using ChatService")
+      let result = try await enhanceWithChatService(
         text: text,
         systemPrompt: systemPrompt,
         model: model,
         chatService: chatService
       )
+      let duration = Date().timeIntervalSince(startTime)
+      AppLogger.debug("[PromptEnhancer] ChatService completed in \(String(format: "%.2f", duration))s")
+      return result
     } else if let service = service {
-      return try await enhanceWithSwiftOpenAI(
+      AppLogger.debug("[PromptEnhancer] Using SwiftOpenAI service")
+      let result = try await enhanceWithSwiftOpenAI(
         text: text,
         systemPrompt: systemPrompt,
         service: service
       )
+      let duration = Date().timeIntervalSince(startTime)
+      AppLogger.debug("[PromptEnhancer] SwiftOpenAI completed in \(String(format: "%.2f", duration))s")
+      return result
     } else {
+      AppLogger.error("[PromptEnhancer] Not configured - no service available")
       throw PromptEnhancerError.notConfigured
     }
   }
@@ -91,6 +107,8 @@ public final class PromptEnhancer {
     model: String,
     chatService: ChatService
   ) async throws -> String {
+    AppLogger.debug("[PromptEnhancer] ChatService request - model: \(model), systemPrompt length: \(systemPrompt.count), text: '\(text)'")
+
     let messages = [
       ChatMessage(role: .system, content: systemPrompt),
       ChatMessage(role: .user, content: text)
@@ -103,6 +121,7 @@ public final class PromptEnhancer {
       temperature: 0.3
     )
 
+    AppLogger.debug("[PromptEnhancer] ChatService response length: \(enhancedText.count)")
     return enhancedText.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
@@ -111,6 +130,8 @@ public final class PromptEnhancer {
     systemPrompt: String,
     service: OpenAIService
   ) async throws -> String {
+    AppLogger.debug("[PromptEnhancer] SwiftOpenAI request - model: gpt-4o-mini, temp: 0.3, maxTokens: 1024, text: '\(text)'")
+
     let parameters = ChatCompletionParameters(
       messages: [
         .init(role: .system, content: .text(systemPrompt)),
@@ -124,9 +145,11 @@ public final class PromptEnhancer {
     let response = try await service.startChat(parameters: parameters)
 
     guard let enhancedText = response.choices?.first?.message?.content else {
+      AppLogger.error("[PromptEnhancer] SwiftOpenAI response has no content")
       throw PromptEnhancerError.noContent
     }
 
+    AppLogger.debug("[PromptEnhancer] SwiftOpenAI response length: \(enhancedText.count)")
     return enhancedText.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
