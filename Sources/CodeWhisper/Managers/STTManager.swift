@@ -88,6 +88,18 @@ public final class STTManager {
     }
   }
   
+  /// Start recording if currently idle (for push-to-talk use)
+  public func startPushToTalk() async {
+    guard state.isIdle || { if case .error = state { return true }; return false }() else { return }
+    await startRecording()
+  }
+
+  /// Stop recording and transcribe if currently recording (for push-to-talk use)
+  public func stopPushToTalk() async {
+    guard state.isRecording else { return }
+    await stopRecordingAndTranscribe()
+  }
+
   /// Stop recording and clean up resources without transcribing
   public func stop() {
     recordingTask?.cancel()

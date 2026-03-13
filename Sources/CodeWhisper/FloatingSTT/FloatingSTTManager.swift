@@ -64,6 +64,10 @@ public final class FloatingSTTManager {
   // MARK: - Private State
 
   private var focusCheckTimer: Timer?
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
+  private var spaceDownTimer: Timer?
+  private nonisolated(unsafe) var optionSpaceDown = false
   private var isConfigured: Bool = false
   private var menuBarController: FloatingSTTMenuBarController?
   private var settingsWindowController: FloatingSTTSettingsWindowController?
@@ -158,6 +162,7 @@ public final class FloatingSTTManager {
 
     // Start monitoring for focused text fields
     startFocusMonitoring()
+    startSpaceBarMonitoring()
   }
 
   /// Calculate the fixed position: horizontally centered, above dock
@@ -180,7 +185,8 @@ public final class FloatingSTTManager {
     
     // Stop monitoring
     stopFocusMonitoring()
-    
+    stopSpaceBarMonitoring()
+
     // Stop any ongoing recording
     sttManager.stop()
   }
@@ -375,9 +381,96 @@ public final class FloatingSTTManager {
     focusCheckTimer?.invalidate()
     focusCheckTimer = nil
   }
+
+  private func startSpaceBarMonitoring() {
+    let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+    let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+    guard let tap = CGEvent.tapCreate(
+      tap: .cgSessionEventTap,
+      place: .headInsertEventTap,
+      options: .defaultTap,
+      eventsOfInterest: mask,
+      callback: spaceBarEventTapCallback,
+      userInfo: selfPtr
+    ) else { return }
+    eventTap = tap
+    let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+    runLoopSource = source
+    CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+    CGEvent.tapEnable(tap: tap, enable: true)
+  }
+
+  private func stopSpaceBarMonitoring() {
+    spaceDownTimer?.invalidate()
+    spaceDownTimer = nil
+    if let tap = eventTap {
+      CGEvent.tapEnable(tap: tap, enable: false)
+      eventTap = nil
+    }
+    if let source = runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+      runLoopSource = nil
+    }
+  }
+
+  nonisolated func handleSpaceBarEvent(type: CGEventType, event: CGEvent) -> Bool {
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+    guard keyCode == 49 else { return false }
+
+    if type == .keyDown {
+      // Only start on Option+Space; let bare space pass through
+      guard event.flags.contains(.maskAlternate) else { return false }
+      let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+      if !isRepeat {
+        optionSpaceDown = true
+        MainActor.assumeIsolated {
+          spaceDownTimer?.invalidate()
+          spaceDownTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+              self?.spaceDownTimer = nil   // clear so keyUp knows recording is active
+              await self?.sttManager.startPushToTalk()
+            }
+          }
+        }
+      }
+      return true  // Suppress Option+Space keyDown
+    } else if type == .keyUp {
+      // Use tracked flag — Option may already be released before Space keyUp arrives
+      guard optionSpaceDown else { return false }
+      optionSpaceDown = false
+      MainActor.assumeIsolated {
+        if spaceDownTimer != nil {
+          // Released before threshold – cancel, no recording
+          spaceDownTimer?.invalidate()
+          spaceDownTimer = nil
+        } else {
+          // Was recording – stop
+          Task { @MainActor [weak self] in
+            await self?.sttManager.stopPushToTalk()
+          }
+        }
+      }
+      return true  // Suppress Option+Space keyUp too
+    }
+    return false
+  }
   
   private func updateFocusState() {
     canInsertText = focusDetector.isTextFieldFocused()
   }
+}
+
+private func spaceBarEventTapCallback(
+  proxy: CGEventTapProxy,
+  type: CGEventType,
+  event: CGEvent,
+  userInfo: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+  guard let ptr = userInfo else { return Unmanaged.passRetained(event) }
+  let manager = Unmanaged<FloatingSTTManager>.fromOpaque(ptr).takeUnretainedValue()
+  if manager.handleSpaceBarEvent(type: type, event: event) {
+    return nil  // Suppress
+  }
+  return Unmanaged.passRetained(event)
 }
 #endif
