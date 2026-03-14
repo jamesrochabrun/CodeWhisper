@@ -79,7 +79,7 @@ public struct FloatingSTTButtonView: View {
     self.onTap = onTap
     self.onLongPress = onLongPress
   }
-  
+
   public init(
     sttManager: STTManager,
     buttonSize: CGSize,

@@ -91,10 +91,10 @@ public final class FloatingSTTManager {
   private func setup() {
     // Check initial permission state
     hasAccessibilityPermission = permissionManager.checkPermission()
-    
+
     // Configure text inserter
     textInserter.preferredMethod = configuration.preferredInsertionMethod
-    
+
     let model = configuration.llmConfiguration.model
     // Set up STT transcription callback
     sttManager.onTranscription = { [weak self] text in
@@ -102,6 +102,9 @@ public final class FloatingSTTManager {
         await self?.handleTranscription(text, model: model)
       }
     }
+
+    // Observe STT state for auto-showing settings on error (menu bar mode)
+    observeSTTState()
   }
   
   // MARK: - Configuration
@@ -303,7 +306,7 @@ public final class FloatingSTTManager {
             onTap: {}
           )
         }
-        
+
         return FloatingSTTButtonView(
           sttManager: self.sttManager,
           buttonSize: self.buttonSize,
@@ -312,7 +315,6 @@ public final class FloatingSTTManager {
             self?.toggleRecording()
           },
           onLongPress: { [weak self] in
-            // Could show settings or context menu
             self?.openAccessibilitySettings()
           }
         )
@@ -457,6 +459,21 @@ public final class FloatingSTTManager {
   
   private func updateFocusState() {
     canInsertText = focusDetector.isTextFieldFocused()
+  }
+
+  private func observeSTTState() {
+    withObservationTracking {
+      _ = sttManager.state
+    } onChange: { [weak self] in
+      Task { @MainActor [weak self] in
+        guard let self = self else { return }
+        if case .error = self.sttManager.state,
+           self.configuration.displayMode == .menuBar {
+          self.showSettings()
+        }
+        self.observeSTTState()
+      }
+    }
   }
 }
 

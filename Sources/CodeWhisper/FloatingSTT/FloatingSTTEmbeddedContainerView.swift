@@ -23,9 +23,10 @@ struct FloatingSTTEmbeddedContainerView: View {
 
   @State private var showSettingsPopover: Bool = false
 
-  /// Whether the STT manager is in idle state
-  private var isIdle: Bool {
-    sttManager.state == .idle
+  /// Whether the STT manager is in a state that allows settings access
+  private var canShowSettings: Bool {
+    if case .error = sttManager.state { return true }
+    return sttManager.state == .idle
   }
 
   // MARK: - Body
@@ -33,7 +34,7 @@ struct FloatingSTTEmbeddedContainerView: View {
   var body: some View {
     RightClickableView(
       onRightClick: {
-        if isIdle {
+        if canShowSettings {
           showSettingsPopover = true
         }
       }
@@ -49,9 +50,15 @@ struct FloatingSTTEmbeddedContainerView: View {
     .popover(isPresented: $showSettingsPopover, arrowEdge: .bottom) {
       FloatingSTTSettingsView(
         manager: floatingManager,
+        sttManager: sttManager,
         isPopover: true,
         onDismiss: { showSettingsPopover = false }
       )
+    }
+    .onChange(of: sttManager.state) { _, newValue in
+      if case .error = newValue {
+        showSettingsPopover = true
+      }
     }
   }
 }
