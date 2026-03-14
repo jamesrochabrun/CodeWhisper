@@ -186,8 +186,9 @@ public final class STTManager {
         }
       } catch {
         await MainActor.run {
-          self.state = .error(error.localizedDescription)
-          self.errorMessage = "Recording error: \(error.localizedDescription)"
+          let message = self.descriptiveMessage(for: error)
+          self.state = .error(message)
+          self.errorMessage = "Recording error: \(message)"
         }
       }
     }
@@ -255,8 +256,9 @@ public final class STTManager {
       }
 
     } catch {
-      state = .error(error.localizedDescription)
-      errorMessage = "Transcription failed: \(error.localizedDescription)"
+      let message = descriptiveMessage(for: error)
+      state = .error(message)
+      errorMessage = "Transcription failed: \(message)"
       audioBuffers.removeAll()
     }
   }
@@ -372,6 +374,13 @@ public final class STTManager {
     return data
   }
   
+  private func descriptiveMessage(for error: Error) -> String {
+    if let apiError = error as? APIError {
+      return apiError.displayDescription
+    }
+    return error.localizedDescription
+  }
+
   private func requestMicrophonePermission() async -> Bool {
 #if os(macOS)
     let currentPermission = AVAudioApplication.shared.recordPermission

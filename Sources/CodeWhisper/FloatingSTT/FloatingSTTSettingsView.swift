@@ -14,6 +14,7 @@ import SwiftUI
 public struct FloatingSTTSettingsView: View {
 
     @Bindable var manager: FloatingSTTManager
+    @Bindable var sttManager: STTManager
     @State private var hasAccessibilityPermission: Bool = false
 
     /// Whether shown in a popover (affects sizing/padding)
@@ -22,8 +23,9 @@ public struct FloatingSTTSettingsView: View {
     /// Callback to dismiss the popover (only used when isPopover is true)
     let onDismiss: (() -> Void)?
 
-    public init(manager: FloatingSTTManager, isPopover: Bool = false, onDismiss: (() -> Void)? = nil) {
+    public init(manager: FloatingSTTManager, sttManager: STTManager? = nil, isPopover: Bool = false, onDismiss: (() -> Void)? = nil) {
         self.manager = manager
+        self.sttManager = sttManager ?? manager.sttManager
         self.isPopover = isPopover
         self.onDismiss = onDismiss
     }
@@ -42,6 +44,11 @@ public struct FloatingSTTSettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+
+                // Error banner (shown only when in error state)
+                if case .error(let message) = sttManager.state {
+                    ErrorBannerView(message: message)
                 }
 
                 FloatingButtonSection(hasAccessibilityPermission: $hasAccessibilityPermission)
@@ -124,6 +131,37 @@ private struct FloatingButtonSection: View {
 
     private func refreshPermission() {
         hasAccessibilityPermission = FloatingSTT.hasAccessibilityPermission
+    }
+}
+
+// MARK: - Error Banner
+
+private struct ErrorBannerView: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.white)
+                .font(.system(size: 16))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Error")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.red.opacity(0.85))
+        )
     }
 }
 
